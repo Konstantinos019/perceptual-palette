@@ -55,7 +55,7 @@
 
   /* Shadows - Refined to match Figma's soft look */
   --shadow-sm: 0px 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0px 1.5px 12.3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0px 2px 12px rgba(0, 0, 0, 0.08);
   /* Exact Figma Value */
 }
 
@@ -90,7 +90,6 @@ body {
   color: var(--text-primary);
   font-family: var(--font-family-base);
   font-size: 13px;
-  /* ~13.82px in Figma, rounded to decent read size */
   line-height: 1.4;
   height: 100vh;
   display: flex;
@@ -179,9 +178,9 @@ body:not(.light-theme) ::-webkit-scrollbar-thumb:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 15.355px;
-  gap: 18.426px;
-  border-bottom: 0.768px solid var(--border-subtle);
+  padding: 16px;
+  gap: 20px;
+  border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-card);
   flex-shrink: 0;
   width: 100%;
@@ -266,7 +265,7 @@ body:not(.light-theme) #theme-toggle #theme-thumb {
 }
 
 #theme-toggle .material-symbols-rounded {
-  font-size: 13.82px;
+  font-size: 14px;
 }
 
 /* Dark Mode Background for Toggle */
@@ -283,6 +282,8 @@ body:not(.light-theme) .smart-switch {
 body:not(.light-theme) .smart-switch__thumb {
   background: #3D3D3D;
 }
+
+
 
 /* POSITIONING LOGIC */
 
@@ -401,8 +402,8 @@ body:not(.light-theme) .smart-switch.active {
 /* Section Card Utility (Unified Design V 0.0.46) */
 .section-card {
   background: var(--bg-card);
-  border: 0.768px solid var(--border-subtle);
-  border-radius: 18.426px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
   /* Precise Figma Radius */
   box-shadow: var(--shadow-md);
   overflow: hidden;
@@ -589,10 +590,10 @@ body:not(.light-theme) .mode-thumb {
   gap: 12px;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 15.355px;
+  padding: 12px 16px;
   width: 100%;
   position: relative;
-  border-bottom: 0.768px solid #ececec;
+  border-bottom: 1px solid #ececec;
 }
 
 body:not(.light-theme) .color-tool {
@@ -606,8 +607,7 @@ body:not(.light-theme) .color-tool {
 .color-tool__label {
   font-family: var(--font-family-base);
   font-weight: 500;
-  font-size: 13.8px;
-  /* Match Figma 13.82px */
+  font-size: 14px;
   color: #3C3C3C;
   margin: 0;
   white-space: nowrap;
@@ -671,7 +671,7 @@ body:not(.light-theme) .color-tool__label {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 12.284px;
+  gap: 12px;
   flex: 1;
   justify-content: flex-end;
 }
@@ -706,10 +706,10 @@ body:not(.light-theme) .color-tool__label {
 .color-picker__trigger {
   flex: 1;
   /* Stretch to align with sliders */
-  height: 30.711px;
+  height: 32px;
   border-radius: 12px;
   overflow: clip;
-  border: 0.768px solid #ececec;
+  border: 1px solid #ececec;
   cursor: pointer;
   position: relative;
 }
@@ -878,10 +878,10 @@ body:not(.light-theme) .slider-wrapper {
 .value-badge {
   background: #F3F3F3;
   border: 1px solid var(--border-subtle);
-  border-radius: 12.284px;
+  border-radius: 12px;
   width: 75px;
   /* Unified Alignment width */
-  height: 30.711px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -891,8 +891,7 @@ body:not(.light-theme) .slider-wrapper {
 .value-badge span {
   font-family: var(--font-family-base);
   font-weight: 500;
-  font-size: 10.7px;
-  /* Match Figma 10.749px */
+  font-size: 11px;
   color: #3C3C3C;
   text-align: center;
 }
@@ -916,7 +915,7 @@ input[type="range"]::-webkit-slider-thumb {
   background: #FFFFFF url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="2" height="4"><rect x="0" y="0" width="2" height="4" rx="1" fill="black"/></svg>') no-repeat center;
   background-size: 2px 4px;
   border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0px 2.303px 5.912px rgba(0, 0, 0, 0.12), 0px 0px 1.536px rgba(0, 0, 0, 0.11);
+  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.12), 0px 0px 2px rgba(0, 0, 0, 0.11);
   border-radius: 9px;
   cursor: pointer;
   z-index: 3;
@@ -1188,8 +1187,8 @@ body:not(.light-theme) .palette-container {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   align-items: center;
-  padding: 15.35px 16px;
-  border-bottom: 0.768px solid #ececec;
+  padding: 16px;
+  border-bottom: 1px solid #ececec;
   background: var(--bg-card);
 }
 
@@ -1345,8 +1344,8 @@ body:not(.light-theme) .list-row__cell {
 .color-pill {
   width: 32px;
   height: 32px;
-  border-radius: 11.232px;
-  border: 0.768px solid #ececec;
+  border-radius: 12px;
+  border: 1px solid #ececec;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.02);
 }
 
@@ -1555,7 +1554,7 @@ body:not(.light-theme) .list-row__cell {
   width: 24px;
   height: 24px;
   border-radius: 12px;
-  border: 0.768px solid #ececec;
+  border: 1px solid #ececec;
   background: #888888;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1599,14 +1598,21 @@ body:not(.light-theme) .palette-pill--active {
 .modal-overlay {
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(4px);
+  padding: 40px;
+  /* Requested padding from parent */
+  box-sizing: border-box;
+  /* Ensure padding is part of the layout */
 }
 
 .modal-card {
   background: var(--bg-card);
   border-radius: 20px;
   box-shadow: var(--shadow-md);
-  border: 0.768px solid var(--border-subtle);
-  width: 320px;
+  border: 1px solid var(--border-subtle);
+  width: 100%;
+  /* Responsive width */
+  max-width: 470px;
+  /* Requested max width */
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -1622,7 +1628,7 @@ body:not(.light-theme) .modal-card {
   justify-content: space-between;
   align-items: center;
   padding: 24px;
-  border-bottom: 0.768px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-card);
 }
 
@@ -1672,7 +1678,7 @@ body:not(.light-theme) .modal-close-btn:hover {
 
 .modal-row {
   padding: 16px 24px;
-  border-bottom: 0.768px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1682,13 +1688,50 @@ body:not(.light-theme) .modal-row {
   border-color: #404040;
 }
 
-/* Last row might still need border if previews come after? */
-
-.modal-row-label {
+/* Last row might still need border if */
+#preview-before,
+#preview-after {
+  flex: 1;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  width: 100%;
+  justify-content: center;
+  color: white;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  min-width: 1px;
+  /* Prevent flex collapse */
+  /* overflow: hidden; REMOVED to allow badge overlap */
+  position: relative;
+  /* Ensure z-index works if needed */
+}
+
+#preview-before {
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+}
+
+#preview-after {
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+/* Typography for Hex Labels in Swatches */
+#hex-before-label,
+#hex-after-label {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  line-height: normal;
+}
+
+/* Sub-label text (Original/Refining) */
+.swatch-sublabel {
+  opacity: 0.8;
+  font-size: 16px;
+  line-height: normal;
+  color: inherit;
+  /* Ensure it follows the dynamic container color */
 }
 
 .label-text {
@@ -1698,8 +1741,8 @@ body:not(.light-theme) .modal-row {
 }
 
 .value-pill {
-  background: var(--bg-subtle);
-  padding: 4px 10px;
+  background: transparent;
+  padding: 0;
   border-radius: 12px;
   font-size: 13px;
   font-weight: 500;
@@ -1712,9 +1755,106 @@ body:not(.light-theme) .value-pill {
   background: #333;
 }
 
-/* Custom Slider Styling */
-input[type=range].rainbow-slider {
+/* Custom Slider Styling - Scoped to Refine Modal */
+.refiner-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  height: 8px;
+  /* Fixed height for track in modal */
+  border-radius: 4px;
+  width: 100%;
+}
+
+/* Track styles specific to refiner slider types */
+.refiner-slider.rainbow-slider {
   background: linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%);
+}
+
+
+
+/* Thumb Styling - ONLY for Refine Modal sliders */
+.refiner-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: pointer;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.15);
+  margin-top: 0;
+  /* Centered because track is defined */
+}
+
+/* Old global rainbow slider style from before (restored if needed, though previously it was just .rainbow-slider) */
+/* The "previous" design didn't have global range reset. It just had .rainbow-slider background. */
+/* We will leave general input[type=range] alone to revert to default/app handles. */
+
+/* Allow rainbow background on refiner sliders too */
+.rainbow-slider {
+  background: linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%);
+}
+
+/* Contrast Badge - Overlapping Pill */
+.contrast-badge {
+  position: absolute;
+  bottom: -14px;
+  /* Half height overlap approx */
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffffff;
+  padding: 6px 10px;
+  border-radius: 12px;
+  border: none;
+  /* Clean look based on screenshot */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
+  font-weight: 500;
+  color: #3c3c3c;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  min-width: fit-content;
+  white-space: nowrap;
+}
+
+.warning-icon {
+  font-size: 16px;
+  color: #FFB800;
+  display: inline-flex;
+}
+
+/* Modal Rows & Sliders */
+.modal-row {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-row-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.value-pill {
+  /* Removed background as requested */
+  background: transparent;
+  padding: 0;
+  font-size: 14px;
+  /* Slightly larger text */
+  font-weight: 500;
+  color: var(--text-primary);
+  text-align: right;
+  min-width: 40px;
 }
 
 .modal-footer {
@@ -1763,4 +1903,27 @@ body:not(.light-theme) .btn-pill-primary {
 body:not(.light-theme) .btn-pill-secondary {
   background: #333;
   color: #fff;
+}
+
+/* Mode Content Visibility */
+.mode-content {
+  display: none;
+  width: 100%;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.mode-content.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

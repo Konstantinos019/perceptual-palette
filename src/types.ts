@@ -15,18 +15,22 @@
 /**
  * Configuration for palette generation
  */
+export interface Override {
+    mode?: 'lch' | 'hsl' | 'rgb' | 'hsb';
+    hue?: number; chroma?: number; lightness?: number;
+    s?: number; // HSL/HSB Saturation
+    v?: number; // HSB Brightness/Value
+    r?: number; g?: number; b?: number; // RGB components
+}
+
 export interface PaletteConfig {
     /** Hex string of the anchor color */
     baseColor: string;
     /** The specific weights to generate (e.g., [100, 200, ..., 900]) */
     stops: number[];
     /** Manual overrides for specific stops to tweak aesthetics */
-    overrides: Record<number, {
-        mode?: 'lch' | 'hsl' | 'rgb';
-        hue?: number; chroma?: number; lightness?: number;
-        s?: number; // HSL Saturation
-        r?: number; g?: number; b?: number; // RGB components
-    }>;
+    // Key is stop number (e.g. 500) OR 'seed' for the base color
+    overrides: Record<number | string, Override>;
     /** Whether to show the original input color as a separate swatch */
     showOriginal?: boolean;
     /** The specific stop to treat as the anchor/seed (defaults to 500) */

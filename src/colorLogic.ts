@@ -1,5 +1,5 @@
-import { oklch, wcagContrast, formatHex, inGamut, hsl, rgb, lch } from 'culori';
-export { wcagContrast, hsl, rgb, lch, oklch, formatHex }; // Export for UI usage
+import { oklch, wcagContrast, formatHex, inGamut, hsl, rgb, lch, hsv } from 'culori';
+export { wcagContrast, hsl, rgb, lch, oklch, formatHex, hsv }; // Export for UI usage
 import type { PaletteConfig, SwatchResult } from './types';
 
 // ============================================================================
@@ -295,6 +295,17 @@ function createSwatch(stop: number, l: number, anchorOklch: any, overrides: any,
             };
             const backOklch = oklch(newRgb);
             // V 0.0.79 Fix: Respect the new hue from RGB
+            if (backOklch) finalOklch = { mode: 'oklch', l: backOklch.l, c: backOklch.c, h: backOklch.h || 0 };
+        } else if (over.mode === 'hsb') {
+            // HSB support (mapped to HSV)
+            const currentHsv = hsv(formatHex(finalOklch)) || { h: 0, s: 0, v: 0 };
+            const newHsv = {
+                mode: 'hsv' as const,
+                h: over.hue !== undefined ? over.hue : currentHsv.h,
+                s: over.s !== undefined ? over.s : currentHsv.s,
+                v: over.v !== undefined ? over.v : currentHsv.v
+            };
+            const backOklch = oklch(newHsv);
             if (backOklch) finalOklch = { mode: 'oklch', l: backOklch.l, c: backOklch.c, h: backOklch.h || 0 };
         }
     }

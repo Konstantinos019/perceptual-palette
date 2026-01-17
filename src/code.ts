@@ -1,7 +1,7 @@
 /// <reference types="@figma/plugin-typings" />
 import type { FigmaExportPayload } from './types';
 
-figma.showUI(__html__, { width: 448, height: 900, themeColors: true });
+figma.showUI(__html__, { width: 525, height: 900, themeColors: true });
 
 // Sync with selection on launch is the ONLY "smart" thing code.ts does now
 // And even this could be refactored, but it's fine here as an input mechanism.
@@ -24,7 +24,7 @@ figma.ui.onmessage = async (msg) => {
     if (msg.type === 'CLOSE_PLUGIN') {
         figma.closePlugin();
     } else if (msg.type === 'RESIZE_UI') {
-        figma.ui.resize(msg.width || 448, msg.height);
+        figma.ui.resize(msg.width || 525, msg.height);
     } else if (msg.type === 'GET_PALETTES') {
         // Phase 1 + 3: Read existing palettes data using helper
         await sendPalettesToUI();

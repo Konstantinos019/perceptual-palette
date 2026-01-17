@@ -191,63 +191,69 @@
       </div>
 
       <div class="control-section" style="overflow-y: auto; flex: 1;">
-        <div style="padding: 24px; border-bottom: 0.768px solid #ececec;">
+        <div style="padding: 24px; border-bottom: 1px solid #ececec; position: relative;">
           <div class="comparison-preview" style="display: flex; height: 128px;">
-            <div id="preview-before"
-              style="flex:1; border-top-left-radius: 12px; border-bottom-left-radius: 12px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; font-size:14px; font-weight: 500;">
-              <span id="hex-before-label" style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">#000000</span>
-              <span style="opacity: 0.8; font-size: 13px;">Original</span>
+            <div id="preview-before">
+              <span id="hex-before-label">#000000</span>
+              <span class="swatch-sublabel">Original</span>
             </div>
-            <div id="preview-after"
-              style="flex:1; border-top-right-radius: 12px; border-bottom-right-radius: 12px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; font-size:14px; font-weight: 500;">
-              <span id="hex-after-label" style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">#000000</span>
-              <span style="opacity: 0.8; font-size: 13px;">Refining</span>
+            <div id="preview-after">
+              <span id="hex-after-label">#000000</span>
+              <span class="swatch-sublabel">Refining</span>
             </div>
+          </div>
+          <!-- Contrast Badge (V 0.0.79 Parity) -->
+          <div class="contrast-badge" id="modal-contrast-badge" style="display: none;">
+            <span id="modal-contrast-value">1.00</span>
+            <span class="material-symbols-rounded warning-icon" style="font-size: 16px;">warning</span>
           </div>
         </div>
 
         <div style="padding: 16px 24px 0 24px;">
-          <div class="mode-tabs" style="max-width: 100%; margin-bottom: 0;">
-            <div id="modal-mode-thumb" class="mode-thumb" style="width: calc(33.33% - 4px);"></div>
-            <button class="modal-tab active mode-tab" data-mode="lch" style="width: 33.33%;">LCH</button>
-            <button class="modal-tab mode-tab" data-mode="hsl" style="width: 33.33%;">HSL</button>
-            <button class="modal-tab mode-tab" data-mode="rgb" style="width: 33.33%;">RGB</button>
+          <div class="mode-tabs" style="max-width: 100%; width: 100%;">
+            <div id="segment-thumb" class="mode-thumb" style="width: calc(33.33% - 4px);"></div>
+            <button class="mode-tab active" data-mode="hsl" style="width: 33.33%;">HSL</button>
+            <button class="mode-tab" data-mode="hsb" style="width: 33.33%;">HSB</button>
+            <button class="mode-tab" data-mode="rgb" style="width: 33.33%;">RGB</button>
           </div>
         </div>
 
-        <!-- LCH Controls -->
-        <div id="lch-controls" class="mode-content active">
+        <!-- LCH Controls (Hidden) -->
+        <div id="lch-controls" class="mode-content">
           <div class="modal-row">
             <div class="modal-row-label">
               <span class="label-text">Hue</span>
               <div id="hue-val" class="value-pill">0°</div>
             </div>
-            <input type="range" id="hue-slider" class="rainbow-slider" min="0" max="360" step="1" style="width: 100%;">
+            <input type="range" id="hue-slider" class="rainbow-slider refiner-slider" min="0" max="360" step="1"
+              style="width: 100%;">
           </div>
           <div class="modal-row">
             <div class="modal-row-label">
               <span class="label-text">Chroma</span>
               <div id="chroma-val" class="value-pill">0</div>
             </div>
-            <input type="range" id="chroma-slider" min="0" max="150" step="0.5" style="width: 100%;">
+            <input type="range" id="chroma-slider" class="refiner-slider" min="0" max="150" step="0.5"
+              style="width: 100%;">
           </div>
           <div class="modal-row" style="border-bottom: none;">
             <div class="modal-row-label">
               <span class="label-text">Lightness</span>
               <div id="lch-l-val" class="value-pill">0</div>
             </div>
-            <input type="range" id="lch-l-slider" min="0" max="100" step="0.5" style="width: 100%;">
+            <input type="range" id="lch-l-slider" class="refiner-slider" min="0" max="100" step="0.5"
+              style="width: 100%;">
           </div>
         </div>
 
-        <!-- HSL Controls -->
-        <div id="hsl-controls" class="mode-content hidden">
+        <!-- HSL Controls (Default Active) -->
+        <div id="hsl-controls" class="mode-content active">
           <div class="modal-row">
             <div class="modal-row-label">
               <span class="label-text">Hue</span>
               <div id="hsl-h-val" class="value-pill">0°</div>
             </div>
-            <input type="range" id="hsl-h-slider" class="rainbow-slider" min="0" max="360" step="1"
+            <input type="range" id="hsl-h-slider" class="rainbow-slider refiner-slider" min="0" max="360" step="1"
               style="width: 100%;">
           </div>
           <div class="modal-row">
@@ -255,66 +261,101 @@
               <span class="label-text">Saturation</span>
               <div id="hsl-s-val" class="value-pill">0%</div>
             </div>
-            <input type="range" id="hsl-s-slider" min="0" max="100" step="1" style="width: 100%;">
+            <input type="range" id="hsl-s-slider" class="refiner-slider" min="0" max="100" step="1"
+              style="width: 100%;">
           </div>
           <div class="modal-row" style="border-bottom: none;">
             <div class="modal-row-label">
               <span class="label-text">Lightness</span>
               <div id="hsl-l-val" class="value-pill">0%</div>
             </div>
-            <input type="range" id="hsl-l-slider" min="0" max="100" step="1" style="width: 100%;">
+            <input type="range" id="hsl-l-slider" class="refiner-slider" min="0" max="100" step="1"
+              style="width: 100%;">
+          </div>
+        </div>
+
+        <!-- HSB Controls -->
+        <div id="hsb-controls" class="mode-content">
+          <div class="modal-row">
+            <div class="modal-row-label">
+              <span class="label-text">Hue</span>
+              <div id="hsb-h-val" class="value-pill">0°</div>
+            </div>
+            <input type="range" id="hsb-h-slider" class="rainbow-slider refiner-slider" min="0" max="360" step="1"
+              style="width: 100%;">
+          </div>
+          <div class="modal-row">
+            <div class="modal-row-label">
+              <span class="label-text">Saturation</span>
+              <div id="hsb-s-val" class="value-pill">0%</div>
+            </div>
+            <input type="range" id="hsb-s-slider" class="refiner-slider" min="0" max="100" step="1"
+              style="width: 100%;">
+          </div>
+          <div class="modal-row" style="border-bottom: none;">
+            <div class="modal-row-label">
+              <span class="label-text">Brightness</span>
+              <div id="hsb-b-val" class="value-pill">0%</div>
+            </div>
+            <input type="range" id="hsb-b-slider" class="refiner-slider" min="0" max="100" step="1"
+              style="width: 100%;">
           </div>
         </div>
 
         <!-- RGB Controls -->
-        <div id="rgb-controls" class="mode-content hidden">
+        <div id="rgb-controls" class="mode-content">
           <div class="modal-row">
             <div class="modal-row-label">
               <span class="label-text">Red</span>
               <div id="rgb-r-val" class="value-pill">0</div>
             </div>
-            <input type="range" id="rgb-r-slider" min="0" max="255" step="1" style="width: 100%;">
+            <input type="range" id="rgb-r-slider" class="refiner-slider" min="0" max="255" step="1"
+              style="width: 100%;">
           </div>
           <div class="modal-row">
             <div class="modal-row-label">
               <span class="label-text">Green</span>
               <div id="rgb-g-val" class="value-pill">0</div>
             </div>
-            <input type="range" id="rgb-g-slider" min="0" max="255" step="1" style="width: 100%;">
+            <input type="range" id="rgb-g-slider" class="refiner-slider" min="0" max="255" step="1"
+              style="width: 100%;">
           </div>
           <div class="modal-row" style="border-bottom: none;">
             <div class="modal-row-label">
               <span class="label-text">Blue</span>
               <div id="rgb-b-val" class="value-pill">0</div>
             </div>
-            <input type="range" id="rgb-b-slider" min="0" max="255" step="1" style="width: 100%;">
+            <input type="range" id="rgb-b-slider" class="refiner-slider" min="0" max="255" step="1"
+              style="width: 100%;">
           </div>
         </div>
-      </div>
 
-      <div class="modal-footer">
-        <button id="reset-override" class="btn-pill btn-pill-secondary">
-          <span class="material-symbols-rounded" style="font-size: 20px;">refresh</span>
-          Reset
-        </button>
-        <button id="save-modal-btn" class="btn-pill btn-pill-primary">
-          <span class="material-symbols-rounded" style="font-size: 20px;">save</span>
-          Save changes
-        </button>
+
+
+
+        <div class="modal-footer">
+          <button id="reset-override" class="btn-pill btn-pill-secondary">
+            <span class="material-symbols-rounded" style="font-size: 20px;">refresh</span>
+            Reset
+          </button>
+          <button id="save-modal-btn" class="btn-pill btn-pill-primary">
+            <span class="material-symbols-rounded" style="font-size: 20px;">save</span>
+            Save changes
+          </button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Global Tooltip for escaping overflow constraints - V 0.0.70 -->
-  <div id="global-tooltip" class="tooltip-content" style="display: none;">
-    <strong>Legacy</strong>: Uses the 100-900 scale based on Zain Adeel’s WCAG 2.1 algorithm for standard
-    accessibility.<br><br>
-    <strong>Perceptual (OKLCH)</strong>: Uses the latest APCA-aligned standard. We applied Zain's logic to the OKLCH
-    L-axis for a more uniform and predictable visual scale.<br><br>
-    <a href="https://uxdesign.cc/my-struggle-with-colors-part-ii-ed71bff6302a" target="_blank">Read Zain's Article</a>
-  </div>
+    <!-- Global Tooltip for escaping overflow constraints - V 0.0.70 -->
+    <div id="global-tooltip" class="tooltip-content" style="display: none;">
+      <strong>Legacy</strong>: Uses the 100-900 scale based on Zain Adeel’s WCAG 2.1 algorithm for standard
+      accessibility.<br><br>
+      <strong>Perceptual (OKLCH)</strong>: Uses the latest APCA-aligned standard. We applied Zain's logic to the OKLCH
+      L-axis for a more uniform and predictable visual scale.<br><br>
+      <a href="https://uxdesign.cc/my-struggle-with-colors-part-ii-ed71bff6302a" target="_blank">Read Zain's Article</a>
+    </div>
 
-  <script type="module" src="./ui.ts"></script>
+    <script type="module" src="./ui.ts"></script>
 </body>
 
 </html>

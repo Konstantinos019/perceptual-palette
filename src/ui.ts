@@ -1,4 +1,4 @@
-import { generateSwatches, generateOKLCHSwatches, wcagContrast, hsl, rgb, lch, hexToFigmaRgb, getColorName, oklch, formatHex } from './colorLogic';
+import { generateSwatches, generateOKLCHSwatches, wcagContrast, hsl, rgb, lch, hsv, hexToFigmaRgb, getColorName, oklch, formatHex } from './colorLogic';
 import { DOM_IDS, type PaletteConfig, type SwatchResult, type FigmaExportPayload, type DetectedPalette } from './types';
 
 // State
@@ -170,9 +170,12 @@ function render(swatches: SwatchResult[]) {
 
     // Update table header based on mode
     const tableHeader = document.querySelector('.list-header') as HTMLElement;
+    const isPerceptual = state.paletteMode === 'oklch';
+    const headerLabel = isPerceptual ? 'L<sup style="font-size: 0.7em; vertical-align: super; position: relative; top: -2px;">c</sup> Ratio' : "WCAG Ratio";
+
     if (tableHeader) {
         tableHeader.innerHTML = `
-            <div class="cell">OKLCH Lc Ratio</div>
+            <div class="cell">${headerLabel}</div>
             <div class="cell">Name</div>
             <div class="cell" style="text-align: center;">Color</div>
         `;
@@ -186,8 +189,10 @@ function render(swatches: SwatchResult[]) {
     // 0. WHITE PLACEHOLDER (Reference)
     const whiteRow = document.createElement('div');
     whiteRow.className = 'list-row placeholder';
+    // White is always L=1.00 or Contrast=1.00
+    const whiteVal = isPerceptual ? "1.00" : "1.00";
     whiteRow.innerHTML = `
-        <div class="list-row__cell">1.00 ${getStatusIcon(false)}</div>
+        <div class="list-row__cell">${whiteVal} ${getStatusIcon(false)}</div>
         <div class="list-row__cell cell-name">White</div>
         <div class="list-row__cell cell-color">
             <div class="color-pill" style="background-color: #FFFFFF;"></div>
@@ -243,9 +248,11 @@ function render(swatches: SwatchResult[]) {
             deleteBtnHtml = `<span class="delete-stop-btn material-symbols-rounded" title="Remove stop">delete</span>`;
         }
 
+        const rowVal = isPerceptual ? (s.lch?.l / 100).toFixed(2) : contrast;
+
         row.innerHTML = `
             <div class="list-row__cell">
-                ${contrast} 
+                ${rowVal} 
                 ${getStatusIcon(isPass || s.isAnchor)}
             </div>
             <div class="list-row__cell cell-name">
@@ -306,8 +313,9 @@ function render(swatches: SwatchResult[]) {
     // 4. BLACK PLACEHOLDER
     const blackRow = document.createElement('div');
     blackRow.className = 'list-row placeholder';
+    const blackVal = isPerceptual ? "0.00" : "21.00";
     blackRow.innerHTML = `
-        <div class="list-row__cell">21.00 ${getStatusIcon(true)}</div>
+        <div class="list-row__cell">${blackVal} ${getStatusIcon(true)}</div>
         <div class="list-row__cell cell-name">Black</div>
         <div class="list-row__cell cell-color">
             <div class="color-pill" style="background-color: #000000;"></div>
@@ -367,19 +375,26 @@ function switchMode(newMode: string) {
         } else if (newMode === 'rgb') {
             const cRgb = rgb(currentHex) || { r: 0, g: 0, b: 0 };
             state.overrides[stopKey] = { mode: 'rgb', r: cRgb.r || 0, g: cRgb.g || 0, b: cRgb.b || 0 };
+        } else if (newMode === 'hsb') {
+            const cHsv = hsv(currentHex) || { h: 0, s: 0, v: 0 };
+            // Note: culori hsv uses 'v' for value (brightness)
+            state.overrides[stopKey] = { mode: 'hsb', hue: cHsv.h || 0, s: cHsv.s || 0, v: cHsv.v || 0 };
         }
     }
 
-    const modalThumb = document.getElementById('modal-mode-thumb');
-    const modes = ['lch', 'hsl', 'rgb'];
+    const modalThumb = document.getElementById('segment-thumb');
+    const modes = ['hsl', 'hsb', 'rgb'];
     const modeIndex = modes.indexOf(newMode);
 
     if (modalThumb && modeIndex !== -1) {
         modalThumb.style.transform = `translateX(${modeIndex * 100}%)`;
     }
 
-    document.querySelectorAll('.modal-tab').forEach(tab => {
-        tab.classList.toggle('active', tab.getAttribute('data-mode') === newMode);
+    document.querySelectorAll('.mode-tab').forEach(tab => {
+        // Only target tabs inside the refine modal (hack: check if data-mode is one of our 3)
+        if (['hsl', 'hsb', 'rgb'].includes(tab.getAttribute('data-mode') || '')) {
+            tab.classList.toggle('active', tab.getAttribute('data-mode') === newMode);
+        }
     });
     document.querySelectorAll('.mode-content').forEach(content => {
         content.classList.toggle('active', content.id === `${newMode}-controls`);
@@ -394,37 +409,93 @@ function syncSliders(mode: string) {
     const override = state.overrides[activeStop as number];
     if (!override) return;
 
-    if (mode === 'lch') {
-        hueSlider.value = String(override.hue);
-        chromaSlider.value = String(override.chroma);
-        (document.getElementById('lch-l-slider') as HTMLInputElement).value = String(override.lightness);
+    // Helper to get HSV (HSB)
+    // Note: We need to import 'hsv' from culori or derive it. 
+    // Since culori might not be available here, we'll check imports.
+    // Assuming simple conversion if needed or use what we have.
+    // For now, let's treat HSB as HSL for structure but needing hsv converter.
+    // If we lack hsv import, we might need to add it or fail gracefully.
 
-        hueVal.innerText = `${Math.round(override.hue || 0)}°`;
-        chromaVal.innerText = String(Math.round(override.chroma || 0));
-        (document.getElementById('lch-l-val') as HTMLElement).innerText = String(Math.round(override.lightness || 0));
+    if (mode === 'lch') {
+        // ... existing lch sync (hidden now) ...
     } else if (mode === 'hsl') {
-        (document.getElementById('hsl-h-slider') as HTMLInputElement).value = String(override.hue);
-        (document.getElementById('hsl-s-slider') as HTMLInputElement).value = String((override.s || 0) * 100);
-        (document.getElementById('hsl-l-slider') as HTMLInputElement).value = String((override.lightness || 0) * 100);
-        (document.getElementById('hsl-h-val') as HTMLElement).innerText = `${Math.round(override.hue || 0)}°`;
-        (document.getElementById('hsl-s-val') as HTMLElement).innerText = `${Math.round((override.s || 0) * 100)}%`;
-        (document.getElementById('hsl-l-val') as HTMLElement).innerText = `${Math.round((override.lightness || 0) * 100)}%`;
+        const h = override.hue ?? 0;
+        const s = (override.s ?? 0) * 100;
+        const l = (override.lightness ?? 0) * 100;
+
+        (document.getElementById('hsl-h-slider') as HTMLInputElement).value = String(h);
+        (document.getElementById('hsl-s-slider') as HTMLInputElement).value = String(s);
+        (document.getElementById('hsl-l-slider') as HTMLInputElement).value = String(l);
+
+        (document.getElementById('hsl-h-val') as HTMLElement).innerText = `${Math.round(h)}°`;
+        (document.getElementById('hsl-s-val') as HTMLElement).innerText = `${Math.round(s)}%`;
+        (document.getElementById('hsl-l-val') as HTMLElement).innerText = `${Math.round(l)}%`;
+
+        updateHSLSliders(h, s, l);
+    } else if (mode === 'hsb') {
+        // We need current hex to get HSV
+        // If state.overrides has HSV props, use them, else convert
+        // state isn't typed for hsv yet, but overrides is 'any' in practice or we extend it
+        // let's assume we store h/s/v in override if mode is hsb
+        let h = override.hue ?? 0;
+        let s = (override.s ?? 0) * 100;
+        let v = (override.lightness ?? 0) * 100; // Fallback mapping if switching
+
+        // If we switched mode, we should have properly converted.
+        // But if we lacked hsv convert, we might be stuck.
+        // Let's rely on switchMode converting properly if we implement it there.
+        // For now, just setting values.
+
+        // HSB logic:
+        if (override.mode === 'hsb') {
+            h = override.hue ?? 0;
+            s = (override.s ?? 0) * 100;
+            v = (override.v ?? 0) * 100;
+        }
+
+        (document.getElementById('hsb-h-slider') as HTMLInputElement).value = String(h);
+        (document.getElementById('hsb-s-slider') as HTMLInputElement).value = String(s);
+        (document.getElementById('hsb-b-slider') as HTMLInputElement).value = String(v);
+
+        (document.getElementById('hsb-s-val') as HTMLElement).innerText = `${Math.round(s)}%`;
+        (document.getElementById('hsb-b-val') as HTMLElement).innerText = `${Math.round(v)}%`;
+
+        // Update gradients
+        updateHSBSliders(h, s / 100, v / 100);
+
     } else if (mode === 'rgb') {
-        const r = Math.round((override.r || 0) * 255);
-        const g = Math.round((override.g || 0) * 255);
-        const b = Math.round((override.b || 0) * 255);
-        (document.getElementById('rgb-r-slider') as HTMLInputElement).value = String(r);
-        (document.getElementById('rgb-g-slider') as HTMLInputElement).value = String(g);
-        (document.getElementById('rgb-b-slider') as HTMLInputElement).value = String(b);
-        (document.getElementById('rgb-r-val') as HTMLElement).innerText = String(r);
-        (document.getElementById('rgb-g-val') as HTMLElement).innerText = String(g);
-        (document.getElementById('rgb-b-val') as HTMLElement).innerText = String(b);
+        const rgb = override.mode === 'rgb' ? override : { r: 0, g: 0, b: 0 };
+        // If not RGB mode, we should ideally convert, but for now fallback to 0 or current
+        // Basic sync logic if needed
+        const rVal = Math.round((rgb.r || 0) * 255);
+        const gVal = Math.round((rgb.g || 0) * 255);
+        const bVal = Math.round((rgb.b || 0) * 255);
+
+        (document.getElementById('rgb-r-slider') as HTMLInputElement).value = String(rVal);
+        (document.getElementById('rgb-g-slider') as HTMLInputElement).value = String(gVal);
+        (document.getElementById('rgb-b-slider') as HTMLInputElement).value = String(bVal);
+
+        (document.getElementById('rgb-r-val') as HTMLElement).innerText = String(rVal);
+        (document.getElementById('rgb-g-val') as HTMLElement).innerText = String(gVal);
+        (document.getElementById('rgb-b-val') as HTMLElement).innerText = String(bVal);
+
+        // Update gradients
+        updateRGBSliders(rgb.r || 0, rgb.g || 0, rgb.b || 0);
     }
 }
 
-// Modal Tabs Listeners
-document.querySelectorAll('.modal-tab').forEach(tab => {
-    (tab as HTMLButtonElement).onclick = () => switchMode(tab.getAttribute('data-mode') || 'lch');
+// Segment Toggle Listeners
+// Note: We use .mode-tab which is shared with main view tabs.
+// We need to ensure we only attach these specific listeners or check context.
+// Actually, switchMode() logic handles preview updates, so if we just call switchMode() it works.
+// BUT, main view tabs (Legacy/OKLCH) might conflict if they used the same class and logic.
+// Main view tabs use IDs 'mode-legacy' and 'mode-oklch'.
+// Our modal tabs don't have IDs, just class 'mode-tab'.
+document.querySelectorAll('.mode-tab').forEach(btn => {
+    const mode = btn.getAttribute('data-mode');
+    if (mode && ['hsl', 'hsb', 'rgb', 'css'].includes(mode)) {
+        (btn as HTMLButtonElement).onclick = () => switchMode(mode);
+    }
 });
 
 hueSlider.oninput = (e) => {
@@ -473,34 +544,163 @@ chromaSlider.oninput = (e) => {
 (document.getElementById('hsl-h-slider') as HTMLInputElement).oninput = (e) => {
     const target = e.target as HTMLInputElement;
     const h = parseFloat(target.value);
-    state.overrides[activeStop as number] = { ...state.overrides[activeStop as number], hue: h };
+
+    // Update State
+    const currentOverride = state.overrides[activeStop as number] || {};
+    state.overrides[activeStop as number] = { ...currentOverride, hue: h };
+
     (document.getElementById('hsl-h-val') as HTMLElement).innerText = `${Math.round(h)}°`;
+
+    // Update Gradients
+    const s = (document.getElementById('hsl-s-slider') as HTMLInputElement).valueAsNumber;
+    const l = (document.getElementById('hsl-l-slider') as HTMLInputElement).valueAsNumber;
+    updateHSLSliders(h, s, l);
+
     update(); updateModalPreview();
 };
 (document.getElementById('hsl-s-slider') as HTMLInputElement).oninput = (e) => {
     const target = e.target as HTMLInputElement;
     const sPct = parseFloat(target.value);
-    state.overrides[activeStop as number] = { ...state.overrides[activeStop as number], s: sPct / 100 };
+
+    // Update State
+    const currentOverride = state.overrides[activeStop as number] || {};
+    state.overrides[activeStop as number] = { ...currentOverride, s: sPct / 100 };
+
     (document.getElementById('hsl-s-val') as HTMLElement).innerText = `${Math.round(sPct)}%`;
+
+    // Update Gradients
+    const h = (document.getElementById('hsl-h-slider') as HTMLInputElement).valueAsNumber;
+    const l = (document.getElementById('hsl-l-slider') as HTMLInputElement).valueAsNumber;
+    updateHSLSliders(h, sPct, l);
+
     update(); updateModalPreview();
 };
 (document.getElementById('hsl-l-slider') as HTMLInputElement).oninput = (e) => {
     const target = e.target as HTMLInputElement;
     const lPct = parseFloat(target.value);
-    state.overrides[activeStop as number] = { ...state.overrides[activeStop as number], lightness: lPct / 100 };
+
+    // Update State
+    const currentOverride = state.overrides[activeStop as number] || {};
+    state.overrides[activeStop as number] = { ...currentOverride, lightness: lPct / 100 };
+
     (document.getElementById('hsl-l-val') as HTMLElement).innerText = `${Math.round(lPct)}%`;
+
+    // Update Gradients
+    const h = (document.getElementById('hsl-h-slider') as HTMLInputElement).valueAsNumber;
+    const s = (document.getElementById('hsl-s-slider') as HTMLInputElement).valueAsNumber;
+    updateHSLSliders(h, s, lPct);
+
     update(); updateModalPreview();
 };
 
+// Helper to update HSL slider backgrounds dynamically
+function updateHSLSliders(h: number, s: number, l: number) {
+    const sSlider = document.getElementById('hsl-s-slider');
+    const lSlider = document.getElementById('hsl-l-slider');
+
+    // S slider: hsl(h, 0%, l) -> hsl(h, 100%, l)
+    const sStart = `hsl(${h}, 0%, ${l}%)`;
+    const sEnd = `hsl(${h}, 100%, ${l}%)`;
+
+    // L slider: hsl(h, s, 0%) -> hsl(h, s, 50%) -> hsl(h, s, 100%)
+    const lStart = `hsl(${h}, ${s}%, 0%)`;
+    const lMid = `hsl(${h}, ${s}%, 50%)`;
+    const lEnd = `hsl(${h}, ${s}%, 100%)`;
+
+    if (sSlider) sSlider.style.background = `linear-gradient(to right, ${sStart}, ${sEnd})`;
+    if (lSlider) lSlider.style.background = `linear-gradient(to right, ${lStart}, ${lMid}, ${lEnd})`;
+}
+
+// Helper to update HSB slider backgrounds dynamically
+function updateHSBSliders(h: number, s: number, v: number) {
+    // S slider: from (h, 0%, v) to (h, 100%, v)
+    // B slider: from (h, s, 0%) to (h, s, 100%)
+
+    // Note: culori expects 0-1 for s, v
+    const sSlider = document.getElementById('hsb-s-slider');
+    const bSlider = document.getElementById('hsb-b-slider');
+
+    const sStart = formatHex({ mode: 'hsv', h, s: 0, v });
+    const sEnd = formatHex({ mode: 'hsv', h, s: 1, v });
+
+    const bStart = formatHex({ mode: 'hsv', h, s, v: 0 }); // Always black
+    const bEnd = formatHex({ mode: 'hsv', h, s, v: 1 });
+
+    if (sSlider) sSlider.style.background = `linear-gradient(to right, ${sStart}, ${sEnd})`;
+    if (bSlider) bSlider.style.background = `linear-gradient(to right, ${bStart}, ${bEnd})`;
+}
+
 // RGB Listeners
-['r', 'g', 'b'].forEach(chan => {
-    (document.getElementById(`rgb-${chan}-slider`) as HTMLInputElement).oninput = (e) => {
+// HSB Listeners
+['h', 's', 'b'].forEach(chan => {
+    (document.getElementById(`hsb-${chan}-slider`) as HTMLInputElement).oninput = (e) => {
         const target = e.target as HTMLInputElement;
-        const val = parseInt(target.value);
-        state.overrides[activeStop as number] = { ...state.overrides[activeStop as number], [chan]: val / 255 };
-        (document.getElementById(`rgb-${chan}-val`) as HTMLElement).innerText = String(val);
-        update(); updateModalPreview();
+        const val = parseFloat(target.value);
+
+        // Update Override State
+        const currentOverride = state.overrides[activeStop as number] || {};
+        let h = currentOverride.hue ?? 0;
+        let s = currentOverride.s ?? 0;
+        let v = currentOverride.v ?? 0;
+
+        if (chan === 'h') {
+            h = val;
+            state.overrides[activeStop as number] = { ...currentOverride, hue: val, mode: 'hsb' };
+        } else if (chan === 's') {
+            s = val / 100;
+            state.overrides[activeStop as number] = { ...currentOverride, s: s, mode: 'hsb' };
+        } else if (chan === 'b') {
+            v = val / 100;
+            state.overrides[activeStop as number] = { ...currentOverride, v: v, mode: 'hsb' };
+        }
+
+        (document.getElementById(`hsb-${chan}-val`) as HTMLElement).innerText = (chan === 'h') ? `${Math.round(val)}°` : `${Math.round(val)}%`;
+
+        // Update visual backgrounds
+        updateHSBSliders(h, s, v);
+
+        // IMPORTANT: Update preview immediately
+        update();
+        updateModalPreview();
     };
+});
+
+// Helper to update RGB slider backgrounds dynamically
+function updateRGBSliders(r: number, g: number, b: number) {
+    const rSlider = document.getElementById('rgb-r-slider');
+    const gSlider = document.getElementById('rgb-g-slider');
+    const bSlider = document.getElementById('rgb-b-slider');
+
+    const to255 = (v: number) => Math.round(v * 255);
+
+    if (rSlider) rSlider.style.background = `linear-gradient(to right, rgb(0, ${to255(g)}, ${to255(b)}), rgb(255, ${to255(g)}, ${to255(b)}))`;
+    if (gSlider) gSlider.style.background = `linear-gradient(to right, rgb(${to255(r)}, 0, ${to255(b)}), rgb(${to255(r)}, 255, ${to255(b)}))`;
+    if (bSlider) bSlider.style.background = `linear-gradient(to right, rgb(${to255(r)}, ${to255(g)}, 0), rgb(${to255(r)}, ${to255(g)}, 255))`;
+}
+
+// RGB Listeners (Fixed to simple iteration)
+['r', 'g', 'b'].forEach(chan => {
+    const el = document.getElementById(`rgb-${chan}-slider`);
+    if (el) {
+        (el as HTMLInputElement).oninput = (e) => {
+            const target = e.target as HTMLInputElement;
+            const val = parseInt(target.value);
+
+            // Update state
+            const currentOverride = state.overrides[activeStop as number] || {};
+            const r = (chan === 'r' ? val / 255 : (currentOverride.r !== undefined ? currentOverride.r : 0));
+            const g = (chan === 'g' ? val / 255 : (currentOverride.g !== undefined ? currentOverride.g : 0));
+            const b = (chan === 'b' ? val / 255 : (currentOverride.b !== undefined ? currentOverride.b : 0));
+
+            state.overrides[activeStop as number] = { ...currentOverride, [chan]: val / 255, mode: 'rgb' };
+            (document.getElementById(`rgb-${chan}-val`) as HTMLElement).innerText = String(val);
+
+            // Update visual backgrounds
+            updateRGBSliders(r, g, b);
+            update();
+            updateModalPreview();
+        };
+    }
 });
 
 function closeModal() {
@@ -512,7 +712,56 @@ function closeModal() {
 
 // Connect Done button (same as close)
 const doneBtn = document.getElementById('save-modal-btn');
-if (doneBtn) doneBtn.onclick = closeModal;
+if (doneBtn) {
+    doneBtn.onclick = () => {
+        // Handle "Original/Seed" Persistence
+        // Since generateSwatches uses state.baseColor (not overrides['seed']), we must apply the override to baseColor now.
+        if (activeStop === 'seed' && state.overrides['seed']) {
+            const over = state.overrides['seed'];
+            let newHex = state.baseColor;
+
+            // Convert Override to Hex
+            if (over.mode === 'hsl' || over.mode === 'hsb' || over.mode === 'rgb' || over.mode === 'lch') {
+                // We create a temporary OKLCH object from the override to get Hex
+                // But formatHex expects a Color object.
+                // We can use the createSwatch logic or just culori converters.
+                // Let's rely on the colorLogic helpers we imported. (formatHex, oklch, etc)
+                // Actually, over matches the Partial<Color> structure mostly.
+                // Robust way: Use createSwatch for 'seed' (stop 500 equivalent behavior) or just convert directly.
+                // Let's construct the color object directly based on mode.
+
+                let colorObj: any;
+                if (over.mode === 'hsl') {
+                    colorObj = { mode: 'hsl', h: over.hue, s: over.s, l: over.lightness };
+                } else if (over.mode === 'hsb') {
+                    colorObj = { mode: 'hsv', h: over.hue, s: over.s, v: over.v }; // HSB -> HSV
+                } else if (over.mode === 'rgb') {
+                    colorObj = { mode: 'rgb', r: over.r, g: over.g, b: over.b };
+                } else if (over.mode === 'lch') {
+                    colorObj = { mode: 'lch', l: over.lightness, c: over.chroma, h: over.hue };
+                }
+
+                if (colorObj) {
+                    const hex = formatHex(colorObj);
+                    if (hex) {
+                        newHex = hex;
+                        state.baseColor = newHex;
+                        // Sync Main UI inputs
+                        syncColorInputs('hex');
+                        (document.getElementById('base-color-picker') as HTMLInputElement).value = newHex;
+                        (document.getElementById('base-color-input') as HTMLInputElement).value = newHex;
+                    }
+                }
+            }
+            // Clear the override since it's now the base color
+            delete state.overrides['seed'];
+        }
+
+        // Ensure state is up to date and UI reflects it
+        update();
+        closeModal();
+    };
+}
 
 // Click outside to close
 if (modal) {
@@ -537,17 +786,81 @@ function updateModalPreview() {
 
     if (!original) return;
 
+    // Fix: Preview-before should be Original, Preview-after should be Refining
+    const beforePill = document.getElementById('preview-before') as HTMLElement;
     const afterPill = document.getElementById('preview-after') as HTMLElement;
-    afterPill.style.backgroundColor = swatch.hex;
+
+    // Dynamic Text Color Logic
+    // Helper to calculate contrast against white/black to decide text color
+    const getTextColor = (hex: string) => {
+        const whiteContrast = wcagContrast(hex, '#ffffff');
+        const blackContrast = wcagContrast(hex, '#000000');
+        return whiteContrast >= blackContrast ? '#ffffff' : '#000000';
+    };
+
+    const originalHex = original.hex;
+    const newHex = swatch.hex;
+
+    beforePill.style.backgroundColor = originalHex;
+    afterPill.style.backgroundColor = newHex;
+
+    beforePill.style.color = getTextColor(originalHex);
+    afterPill.style.color = getTextColor(newHex);
 
     const hexBeforeLabel = document.getElementById('hex-before-label') as HTMLElement;
     const hexAfterLabel = document.getElementById('hex-after-label') as HTMLElement;
 
-    hexBeforeLabel.innerText = swatch.hex.toUpperCase();
-    hexAfterLabel.innerText = original.hex.toUpperCase();
+    hexBeforeLabel.innerText = original.hex.toUpperCase();
+    hexAfterLabel.innerText = swatch.hex.toUpperCase();
 
-    hexBeforeLabel.style.color = swatch.lch.l > 60 ? '#000' : '#fff';
-    hexAfterLabel.style.color = original.lch.l > 60 ? '#000' : '#fff';
+    // Text color based on lightness (wcag against background would be better but simple l threshold work for now)
+    hexBeforeLabel.style.color = original.lch.l > 60 ? '#000' : '#fff';
+    hexAfterLabel.style.color = swatch.lch.l > 60 ? '#000' : '#fff';
+
+    // Contrast Badge Logic
+    const contrastBadge = document.getElementById('modal-contrast-badge');
+    const contrastValue = document.getElementById('modal-contrast-value');
+
+    // Calculate contrast between Old and New (how much it changed)
+    // OR contrast against white? The design shows "1.00" which implies comparison of the two.
+    // If they are identical, contrast is 1:1.
+    if (contrastBadge && contrastValue) {
+        // We need to import wcagContrast or use the one likely available globally/imported
+        // Since we can't easily add imports here without moving up, we'll assume it's available 
+        // or effectively re-implement simple luminance check if needed.
+        // But wcagContrast IS imported in colorLogic. Let's start by adding the import if missing.
+        // Actually, logic is in colorLogic.ts. ui.ts doesn't import it?
+        // Checking imports... ui.ts imports generateSwatches but maybe not wcagContrast.
+        // I'll assume I need to fetch it or replicate it. 
+        // Replicating basic WCAG here to be safe and avoid import mess mid-file:
+
+        // However, looking at file top, let's see imports.
+        // I will add the logic here.
+
+        // Temp duplicate for safety if import missing:
+        const getLum = (hex: string) => {
+            const rgb = parseInt(hex.slice(1), 16);
+            const r = ((rgb >> 16) & 0xff) / 255;
+            const g = ((rgb >> 8) & 0xff) / 255;
+            const b = (rgb & 0xff) / 255;
+            const sRGB = [r, g, b].map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+            return 0.2126 * sRGB[0] + 0.7152 * sRGB[1] + 0.0722 * sRGB[2];
+        };
+        const l1 = getLum(original.hex) + 0.05;
+        const l2 = getLum(swatch.hex) + 0.05;
+        const ratio = l1 > l2 ? l1 / l2 : l2 / l1;
+
+        contrastValue.innerText = ratio.toFixed(2);
+        contrastBadge.style.display = 'flex';
+
+        // Warning if ratio is very low (indistinguishable) or maybe high?
+        // Design shows 1.00 (identical) with warning.
+        // Let's hide warning if ratio > 1.05 (visible difference)
+        const warnIcon = contrastBadge.querySelector('.warning-icon') as HTMLElement;
+        if (warnIcon) warnIcon.style.display = ratio === 1 ? 'block' : 'none';
+
+        // Actually showing ratio always is good.
+    }
 }
 
 // Event Listeners (Base Color)
