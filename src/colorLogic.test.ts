@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { generateSwatches } from './colorLogic';
 import type { PaletteConfig } from './types';
 
-describe('Smart Palette Color Logic', () => {
+describe('Perceptual Palette Color Logic', () => {
     it('should generate a valid palette structure', () => {
         const config: PaletteConfig = {
             baseColor: '#18A0FB',

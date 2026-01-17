@@ -161,7 +161,7 @@ body:not(.light-theme) ::-webkit-scrollbar-thumb:hover {
 
 /* Add a subtle pattern or simple representation if no image */
 .plugin-header-visual::after {
-  content: "Smart Palette";
+  content: "Perceptual Palette";
   font-family: var(--font-family-brand);
   font-weight: 600;
   font-size: 16px;

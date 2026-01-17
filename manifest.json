@@ -1,6 +1,6 @@
 {
-  "name": "Smart Palette",
-  "id": "smart-palette-plugin",
+  "name": "Perceptual Palette",
+  "id": "perceptual-palette-plugin",
   "api": "1.0.0",
   "main": "dist/code.js",
   "ui": "dist/src/ui.html",

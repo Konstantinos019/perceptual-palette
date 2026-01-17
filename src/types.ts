@@ -2,7 +2,7 @@
  * SHARED_CONTRACT.ts
  * 
  * This contract defines the data structures, UI identifiers, and communication protocols
- * for the Smart Palette Figma Plugin.
+ * for the Perceptual Palette Figma Plugin.
  * 
  * CORE LOGIC:
  * - Anchor: User-selected base color (e.g., stop 500).
