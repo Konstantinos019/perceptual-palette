@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Palette</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600&display=swap"
+    rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <link rel="stylesheet" href="./ui.css">
+</head>
+
+<body>
+
+  <div class="plugin-container">
+    <!-- SETTINGS CARD (Top) -->
+    <div class="params-card section-card" id="settings-card" style="flex-shrink: 0;">
+      <!-- GLOBAL HEADER -->
+      <div class="top-header">
+        <div class="flex-row" style="flex: 1 0 0; gap: 6px; align-items: center;">
+          <div class="plugin-icon-box-small">
+            <span class="material-symbols-rounded"
+              style="font-size: 22px; color: white; font-variation-settings: 'wght' 300;">palette</span>
+          </div>
+          <span class="brand-title-text">Accessible Palette</span>
+        </div>
+
+        <!-- Header Controls -->
+        <div class="header-controls">
+          <button id="reset-plugin" class="icon-btn header-btn" title="Reset Plugin">
+            <span class="material-symbols-rounded">refresh</span>
+          </button>
+          <div id="theme-toggle" class="smart-switch" title="Toggle Theme">
+            <div id="theme-thumb" class="smart-switch__thumb">
+              <span id="theme-icon-dark" class="material-symbols-rounded">dark_mode</span>
+              <span id="theme-icon-light" class="material-symbols-rounded" style="display:none">light_mode</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generation Mode Row -->
+      <div class="color-tool">
+        <div class="color-tool__header">
+          <div class="tooltip-wrapper">
+            <span class="color-tool__label">Generation mode</span>
+            <span id="gen-mode-help" class="material-symbols-rounded"
+              style="font-size: 14px; color: var(--text-tertiary); cursor: help;">help</span>
+          </div>
+        </div>
+        <div class="color-tool__body">
+          <div class="mode-tabs">
+            <div id="mode-thumb" class="mode-thumb"></div>
+            <button id="mode-legacy" class="mode-tab">Legacy</button>
+            <button id="mode-oklch" class="mode-tab active">Perceptual</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Anchor Color Component -->
+      <div class="color-tool" id="tool-anchor">
+        <div class="color-tool__header">
+          <span class="color-tool__label">Anchor color</span>
+        </div>
+        <div class="color-tool__body">
+          <div class="value-badge">
+            <input type="text" id="base-color-input" value="#9600FF" spellcheck="false" class="badge-input">
+          </div>
+          <div class="color-picker__trigger" id="anchor-gradient-pill">
+            <input type="color" id="base-color-picker" class="color-picker__native" value="#9600FF">
+            <div id="color-preview-bg" style="width:100%; height:100%; background: #9600FF; pointer-events: none;">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OKLCH Controls (Toggled) -->
+      <!-- Note: We wrap these in a fragment-like container that doesn't add padding to keep rows direct siblings -->
+      <div id="oklch-controls" style="display: contents;">
+        <!-- Hue Component -->
+        <div class="color-tool" id="tool-hue">
+          <div class="color-tool__header">
+            <span class="color-tool__label">Hue</span>
+          </div>
+          <div class="color-tool__body">
+            <div class="value-badge">
+              <span id="oklch-hue-value">320°</span>
+            </div>
+            <div class="slider-wrapper hue-slider-wrapper">
+              <input type="range" id="oklch-hue-slider" min="0" max="360" step="1" value="320">
+            </div>
+          </div>
+        </div>
+
+        <!-- Vividness Component -->
+        <div class="color-tool" id="tool-vividness">
+          <div class="color-tool__header">
+            <span class="color-tool__label">Vividness</span>
+          </div>
+          <div class="color-tool__body">
+            <div class="value-badge">
+              <span id="oklch-vividness-value">100%</span>
+            </div>
+            <div class="slider-wrapper vivid-slider-wrapper">
+              <input type="range" id="oklch-vividness-slider" min="0" max="100" step="1" value="100">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- MAIN CONTENT AREA (Sidebar + Editor) -->
+    <div class="main-content-row">
+      <!-- PALETTE SIDEBAR -->
+      <div class="palette-sidebar" id="palette-sidebar">
+        <div class="palette-pills" id="palette-pills">
+          <!-- Dynamically populated by ui.ts -->
+        </div>
+        <button class="palette-pill palette-pill--add" id="add-palette-btn" title="Create New Palette">
+          <span class="material-symbols-rounded"
+            style="font-size: 18px; font-variation-settings: 'wght' 300;">add</span>
+        </button>
+      </div>
+
+      <!-- RESULTS / PALETTE TABLE -->
+      <div id="results-area" class="palette-container section-card">
+        <div class="list-header">
+          <!-- ui.ts injects header cells here -->
+        </div>
+        <div class="palette-list" id="stops-container">
+          <!-- ui.ts injects rows here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER SECTION (Now a card inside the flow) -->
+    <footer class="section-card plugin-footer">
+      <div class="footer-row flex-between">
+        <span class="label-sm"
+          style="margin:0; font-size:12px; color: var(--text-primary); text-transform:none;">Generate
+          tokens</span>
+        <div id="create-tokens-toggle" class="smart-switch">
+          <div class="smart-switch__thumb">
+            <svg width="10" height="8" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg"
+              class="thumb-icon-svg">
+              <path d="M1 4L3.5 6.5L9 1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-row">
+        <button id="export-btn" class="btn btn--primary w-full">
+          <span class="material-symbols-rounded btn-icon" style="font-variation-settings: 'FILL' 1;">palette</span>
+          <span id="btn-text">Generate Palette</span>
+        </button>
+      </div>
+
+      <div class="footer-info">
+        <div class="version-text">V 0.0.79</div>
+      </div>
+  </div>
+
+  </div>
+
+  <!-- Resize Handle -->
+  <div class="resizer-handle">
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 8H9V9H8V8Z" fill="#888888" />
+      <path d="M5 8H6V9H5V8Z" fill="#888888" />
+      <path d="M8 5H9V6H8V5Z" fill="#888888" />
+    </svg>
+  </div>
+  </div>
+
+  </div>
+
+  <!-- REFINE MODAL -->
+  <div id="refine-modal" class="modal-overlay hidden"
+    style="position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span id="modal-stop-title" class="modal-title">Refine stop 500</span>
+        <button id="close-modal" class="modal-close-btn"><span class="material-symbols-rounded">close</span></button>
+      </div>
+
+      <div class="control-section" style="overflow-y: auto; flex: 1;">
+        <div style="padding: 24px; border-bottom: 0.768px solid #ececec;">
+          <div class="comparison-preview" style="display: flex; height: 128px;">
+            <div id="preview-before"
+              style="flex:1; border-top-left-radius: 12px; border-bottom-left-radius: 12px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; font-size:14px; font-weight: 500;">
+              <span id="hex-before-label" style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">#000000</span>
+              <span style="opacity: 0.8; font-size: 13px;">Original</span>
+            </div>
+            <div id="preview-after"
+              style="flex:1; border-top-right-radius: 12px; border-bottom-right-radius: 12px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; font-size:14px; font-weight: 500;">
+              <span id="hex-after-label" style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">#000000</span>
+              <span style="opacity: 0.8; font-size: 13px;">Refining</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding: 16px 24px 0 24px;">
+          <div class="mode-tabs" style="max-width: 100%; margin-bottom: 0;">
+            <div id="modal-mode-thumb" class="mode-thumb" style="width: calc(33.33% - 4px);"></div>
+            <button class="modal-tab active mode-tab" data-mode="lch" style="width: 33.33%;">LCH</button>
+            <button class="modal-tab mode-tab" data-mode="hsl" style="width: 33.33%;">HSL</button>
+            <button class="modal-tab mode-tab" data-mode="rgb" style="width: 33.33%;">RGB</button>
+          </div>
+        </div>
+
+        <!-- LCH Controls -->
+        <div id="lch-controls" class="mode-content active">
+          <div class="modal-row">
+            <div class="modal-row-label">
+              <span class="label-text">Hue</span>
+              <div id="hue-val" class="value-pill">0°</div>
+            </div>
+            <input type="range" id="hue-slider" class="rainbow-slider" min="0" max="360" step="1" style="width: 100%;">
+          </div>
+          <div class="modal-row">
+            <div class="modal-row-label">
+              <span class="label-text">Chroma</span>
+              <div id="chroma-val" class="value-pill">0</div>
+            </div>
+            <input type="range" id="chroma-slider" min="0" max="150" step="0.5" style="width: 100%;">
+          </div>
+          <div class="modal-row" style="border-bottom: none;">
+            <div class="modal-row-label">
+              <span class="label-text">Lightness</span>
+              <div id="lch-l-val" class="value-pill">0</div>
+            </div>
+            <input type="range" id="lch-l-slider" min="0" max="100" step="0.5" style="width: 100%;">
+          </div>
+        </div>
+
+        <!-- HSL Controls -->
+        <div id="hsl-controls" class="mode-content hidden">
+          <div class="modal-row">
+            <div class="modal-row-label">
+              <span class="label-text">Hue</span>
+              <div id="hsl-h-val" class="value-pill">0°</div>
+            </div>
+            <input type="range" id="hsl-h-slider" class="rainbow-slider" min="0" max="360" step="1"
+              style="width: 100%;">
+          </div>
+          <div class="modal-row">
+            <div class="modal-row-label">
+              <span class="label-text">Saturation</span>
+              <div id="hsl-s-val" class="value-pill">0%</div>
+            </div>
+            <input type="range" id="hsl-s-slider" min="0" max="100" step="1" style="width: 100%;">
+          </div>
+          <div class="modal-row" style="border-bottom: none;">
+            <div class="modal-row-label">
+              <span class="label-text">Lightness</span>
+              <div id="hsl-l-val" class="value-pill">0%</div>
+            </div>
+            <input type="range" id="hsl-l-slider" min="0" max="100" step="1" style="width: 100%;">
+          </div>
+        </div>
+
+        <!-- RGB Controls -->
+        <div id="rgb-controls" class="mode-content hidden">
+          <div class="modal-row">
+            <div class="modal-row-label">
+              <span class="label-text">Red</span>
+              <div id="rgb-r-val" class="value-pill">0</div>
+            </div>
+            <input type="range" id="rgb-r-slider" min="0" max="255" step="1" style="width: 100%;">
+          </div>
+          <div class="modal-row">
+            <div class="modal-row-label">
+              <span class="label-text">Green</span>
+              <div id="rgb-g-val" class="value-pill">0</div>
+            </div>
+            <input type="range" id="rgb-g-slider" min="0" max="255" step="1" style="width: 100%;">
+          </div>
+          <div class="modal-row" style="border-bottom: none;">
+            <div class="modal-row-label">
+              <span class="label-text">Blue</span>
+              <div id="rgb-b-val" class="value-pill">0</div>
+            </div>
+            <input type="range" id="rgb-b-slider" min="0" max="255" step="1" style="width: 100%;">
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="reset-override" class="btn-pill btn-pill-secondary">
+          <span class="material-symbols-rounded" style="font-size: 20px;">refresh</span>
+          Reset
+        </button>
+        <button id="save-modal-btn" class="btn-pill btn-pill-primary">
+          <span class="material-symbols-rounded" style="font-size: 20px;">save</span>
+          Save changes
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Tooltip for escaping overflow constraints - V 0.0.70 -->
+  <div id="global-tooltip" class="tooltip-content" style="display: none;">
+    <strong>Legacy</strong>: Uses the 100-900 scale based on Zain Adeel’s WCAG 2.1 algorithm for standard
+    accessibility.<br><br>
+    <strong>Perceptual (OKLCH)</strong>: Uses the latest APCA-aligned standard. We applied Zain's logic to the OKLCH
+    L-axis for a more uniform and predictable visual scale.<br><br>
+    <a href="https://uxdesign.cc/my-struggle-with-colors-part-ii-ed71bff6302a" target="_blank">Read Zain's Article</a>
+  </div>
+
+  <script type="module" src="./ui.ts"></script>
+</body>
+
+</html>

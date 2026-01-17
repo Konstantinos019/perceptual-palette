@@ -1,0 +1,1766 @@
+:root {
+  /* --- 1. PRIMITIVES --- */
+
+  /* Color Palette */
+  --color-brand-blue: #18A0FB;
+  --color-brand-blue-hover: #108DE0;
+
+  --color-base-white: #FFFFFF;
+  --color-base-black: #000000;
+
+  --color-gray-100: #f3f3f3;
+  --color-gray-200: #ececec;
+  --color-gray-500: #9E9E9E;
+  --color-gray-800: #2C2C2C;
+  --color-gray-900: #1E1E1E;
+
+  /* Typography */
+  --font-family-base: 'Inter', system-ui, sans-serif;
+  --font-family-brand: 'Outfit', sans-serif;
+  --font-family-mono: 'IBM Plex Mono', monospace;
+
+  /* Spacing Scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-pill: 999px;
+
+  /* --- 2. SEMANTICS (Light Theme Default) --- */
+
+  /* Backgrounds */
+  --bg-app: #f9f9f9;
+  --bg-card: #FFFFFF;
+  --bg-subtle: #f3f3f3;
+
+  /* Text */
+  --text-primary: #000000;
+  --text-secondary: #9E9E9E;
+  --text-on-brand: #FFFFFF;
+
+  /* Borders */
+  --border-subtle: #ececec;
+  --border-focus: var(--color-brand-blue);
+
+  /* Actions */
+  --action-primary-bg: var(--color-brand-blue);
+  --action-primary-bg-hover: var(--color-brand-blue-hover);
+  --action-primary-text: var(--color-base-white);
+
+  /* Shadows - Refined to match Figma's soft look */
+  --shadow-sm: 0px 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0px 1.5px 12.3px rgba(0, 0, 0, 0.08);
+  /* Exact Figma Value */
+}
+
+/* Dark Theme Overrides */
+body:not(.light-theme) {
+  /* Backgrounds */
+  --bg-app: var(--color-gray-900);
+  --bg-card: var(--color-gray-800);
+  --bg-subtle: #252525;
+
+  /* Text */
+  --text-primary: #FFFFFF;
+  --text-secondary: #A3A3A3;
+
+  /* Borders */
+  --border-subtle: #3D3D3D;
+
+  /* Shadow Tweaks for Dark Mode */
+  --shadow-sm: 0px 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0px 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-family-base);
+  font-size: 13px;
+  /* ~13.82px in Figma, rounded to decent read size */
+  line-height: 1.4;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* --- Custom Scrollbar Styling (V 0.0.34) --- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+  background-clip: padding-box;
+}
+
+/* Dark Mode Scrollbar */
+body:not(.light-theme) ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  background-clip: padding-box;
+}
+
+body:not(.light-theme) ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+  background-clip: padding-box;
+}
+
+/* --- Layout Structure --- */
+
+.plugin-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  padding: 16px;
+  gap: 16px;
+  background: var(--bg-app);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Header / Image Area */
+.plugin-header-visual {
+  height: 60px;
+  /* ~51px in Figma scaling */
+  background: linear-gradient(135deg, #E0EAfc 0%, #CFDEF3 100%);
+  /* Placeholder for "Figma controls" image */
+  position: relative;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Add a subtle pattern or simple representation if no image */
+.plugin-header-visual::after {
+  content: "Smart Palette";
+  font-family: var(--font-family-brand);
+  font-weight: 600;
+  font-size: 16px;
+  color: #3b82f6;
+  opacity: 0.8;
+}
+
+
+.flex-row {
+  display: flex !important;
+  flex-direction: row !important;
+}
+
+.top-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15.355px;
+  gap: 18.426px;
+  border-bottom: 0.768px solid var(--border-subtle);
+  background: var(--bg-card);
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Main Content Wrapper */
+/* Obsolete wrappers removed in V 0.0.33 flattening */
+
+
+/* Header Removed - Internal Title Row Styles */
+.plugin-icon-box-small {
+  width: 32px;
+  height: 32px;
+  background: #000000;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-title-text {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: -0.04em;
+  background: linear-gradient(89.9846deg, #9559FE 0%, #FF329B 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  width: fit-content;
+}
+
+/* --- COMPONENT: SMART SWITCH (Unified) --- */
+.smart-switch {
+  background: #f3f3f3;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  /* Standardized radius V 0.0.72 */
+  width: 58px;
+  /* (24 * 2) + (4 * 2) + 2 */
+  height: 34px;
+  /* 24 + (4 * 2) + 2 */
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+  user-select: none;
+  padding: 4px;
+  /* Consistent 4px padding */
+}
+
+.smart-switch__thumb {
+  width: 24px;
+  height: 24px;
+  aspect-ratio: 1 / 1;
+  background: #ffffff;
+  border-radius: 8px;
+  /* Refined thumb radius V 0.0.72 */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 1px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  user-select: none;
+}
+
+/* Base Active sliding */
+.smart-switch.active .smart-switch__thumb {
+  transform: translateX(18px);
+}
+
+/* Theme Toggle Specific sliding logic */
+body:not(.light-theme) #theme-toggle #theme-thumb {
+  transform: translateX(24px);
+}
+
+#theme-toggle .material-symbols-rounded {
+  font-size: 13.82px;
+}
+
+/* Dark Mode Background for Toggle */
+body:not(.light-theme) .smart-switch {
+  background: #252525;
+}
+
+.smart-switch__thumb .material-symbols-rounded {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+/* Dark Mode Thumb - Unified Logic */
+body:not(.light-theme) .smart-switch__thumb {
+  background: #3D3D3D;
+}
+
+/* POSITIONING LOGIC */
+
+/* 1. Theme Toggle: Position based on Body Theme */
+body:not(.light-theme) #theme-toggle .smart-switch__thumb {
+  transform: translateX(24px);
+}
+
+/* 2. Generic Active State (For Token Toggle) */
+.smart-switch.active .smart-switch__thumb {
+  transform: translateX(24px);
+}
+
+.smart-switch.active {
+  background: #10B981;
+  /* User requested Green for tokens toggle */
+  border-color: #10B981;
+}
+
+/* Ensure Green wins in Dark Mode (Specificity Fix) */
+body:not(.light-theme) .smart-switch.active {
+  background: #10B981;
+  border-color: #10B981;
+}
+
+.theme-toggle-btn {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  /* Matches Icon Box */
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.theme-toggle-btn:hover {
+  background: var(--bg-subtle);
+}
+
+.theme-toggle-btn .material-symbols-rounded {
+  font-size: 20px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.plugin-icon-box {
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #18A0FB, #8B5CF6);
+  border-radius: 6px;
+  /* Squircleish */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.header-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: white;
+  letter-spacing: 0.01em;
+}
+
+.icon-btn-header {
+  background: transparent;
+  border: none;
+  color: #A3A3A3;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn-header:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+/* Branding Title Bar */
+.plugin-title-bar {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.brand-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--accent-primary);
+  /* Green or Blue per theme */
+  /* Design shows Neon Green/Purple gradient text? Or solid? */
+  /* Screenshot shows "Accessible Palette" in bright Magenta/Pink */
+  background: linear-gradient(90deg, #18A0FB, #F43F5E);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Section Card Utility (Unified Design V 0.0.46) */
+.section-card {
+  background: var(--bg-card);
+  border: 0.768px solid var(--border-subtle);
+  border-radius: 18.426px;
+  /* Precise Figma Radius */
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* Settings Card */
+.params-card {
+  min-height: min-content;
+}
+
+.card-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.card-section:last-child {
+  border-bottom: none;
+}
+
+.card-section.column {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* Labels */
+.label-sm {
+  font-size: 13px;
+  /* Match body font size */
+  font-weight: 500;
+  color: var(--text-primary);
+  text-transform: none;
+  letter-spacing: normal;
+  margin-bottom: 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+body:not(.light-theme) .label-sm {
+  color: var(--text-secondary);
+}
+
+.label-xs {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+/* Toggle Switch (Theme) */
+.theme-switch-row {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  align-items: center;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.icon-btn:hover {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+}
+
+/* Header Specific Controls */
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-btn {
+  width: 32px;
+  height: 32px;
+  opacity: 0.8;
+}
+
+.header-btn:hover {
+  opacity: 1;
+}
+
+.header-btn span {
+  font-size: 20px;
+}
+
+/* Mode Tabs */
+.mode-tabs {
+  background: #F3F3F3;
+  padding: 4px;
+  /* Match smart-switch V 0.0.74 */
+  border-radius: 12px;
+  /* Match smart-switch */
+  display: flex;
+  position: relative;
+  width: 100%;
+  max-width: 180px;
+  /* Balance width V 0.0.77 */
+  flex-shrink: 1;
+  /* Support small screens */
+  user-select: none;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  height: 34px;
+  /* Match smart-switch height */
+  box-sizing: border-box;
+}
+
+/* Dark Mode Track */
+body:not(.light-theme) .mode-tabs {
+  background: #252525;
+  border-color: transparent;
+}
+
+.mode-thumb {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  height: 24px;
+  /* Match smart-switch thumb height */
+  width: calc(50% - 4px);
+  background: #FFFFFF;
+  border-radius: 8px;
+  /* Match smart-switch__thumb radius */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.1);
+  transition: transform 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Dark Mode Thumb */
+body:not(.light-theme) .mode-thumb {
+  background: #3D3D3D;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.mode-tab {
+  width: 50%;
+  flex: none;
+  border: none;
+  background: none;
+  padding: 0 4px;
+  height: 24px;
+  /* Content height as requested */
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 99px;
+  transition: color 0.2s;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+
+.mode-tab.active {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+
+
+/* Component-based Color Tool Styles */
+.color-tool {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 15.355px;
+  width: 100%;
+  position: relative;
+  border-bottom: 0.768px solid #ececec;
+}
+
+body:not(.light-theme) .color-tool {
+  border-bottom-color: #404040;
+}
+
+.color-tool__header {
+  flex: 1 0 0;
+}
+
+.color-tool__label {
+  font-family: var(--font-family-base);
+  font-weight: 500;
+  font-size: 13.8px;
+  /* Match Figma 13.82px */
+  color: #3C3C3C;
+  margin: 0;
+  white-space: nowrap;
+  /* Prevent wrapping V 0.0.77 */
+}
+
+/* Global Tooltip Styling - V 0.0.70 (Escaping overflow) */
+#global-tooltip {
+  display: none;
+  opacity: 0;
+  position: fixed;
+  width: 260px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  color: #3C3C3C;
+  font-size: 11px;
+  line-height: 1.5;
+  z-index: 9999;
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+#global-tooltip.active {
+  display: block;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#global-tooltip a {
+  color: #007AFF;
+  text-decoration: none;
+  font-weight: 500;
+  pointer-events: auto;
+}
+
+#global-tooltip a:hover {
+  text-decoration: underline;
+}
+
+/* Dark mode overrides for tooltip */
+body:not(.light-theme) #global-tooltip {
+  background: rgba(45, 45, 45, 0.88);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  color: #E2E2E2;
+}
+
+body:not(.light-theme) #global-tooltip a {
+  color: #4D9FFF;
+}
+
+body:not(.light-theme) .color-tool__label {
+  color: #E2E2E2;
+}
+
+.color-tool__body {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12.284px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid #999;
+  font-size: 10px;
+  color: #999;
+  margin-left: 4px;
+  cursor: help;
+}
+
+.badge-input {
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  text-align: center;
+  width: 100%;
+  height: 100%;
+  outline: none;
+}
+
+.color-picker__trigger {
+  flex: 1;
+  /* Stretch to align with sliders */
+  height: 30.711px;
+  border-radius: 12px;
+  overflow: clip;
+  border: 0.768px solid #ececec;
+  cursor: pointer;
+  position: relative;
+}
+
+/* --- COMPONENT: INPUT FORM (Legacy Compatibility) --- */
+
+/* Utility: Flex Between */
+.flex-between {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  width: 100%;
+}
+
+.input-row {
+  display: flex;
+  /* User requested flexboxes */
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding-bottom: var(--space-4);
+  margin-top: 0 !important;
+}
+
+.input-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: capitalize !important;
+  /* "Anchor color", not "ANCHOR COLOR" */
+  letter-spacing: normal !important;
+}
+
+.input-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  /* Take remaining space */
+  justify-content: flex-end;
+  /* Align right */
+}
+
+
+/* --- COMPONENT: COLOR PICKER GROUP --- */
+
+.color-picker-group {
+  display: flex;
+  gap: 8px;
+  width: auto;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.color-picker__trigger {
+  flex: 1;
+  height: 32px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  /* Background set inline by JS */
+}
+
+/* Hidden native input overlay */
+.color-picker__native {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Hex Text Input Wrapper */
+.input-text-wrapper {
+  width: 80px;
+  height: 32px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.input-text-wrapper input {
+  border: none;
+  background: transparent;
+  width: 100%;
+  height: 100%;
+
+  color: var(--text-primary);
+  font-family: var(--font-family-mono);
+  font-size: 11px;
+  text-align: center;
+  outline: none;
+}
+
+.input-text-wrapper:focus-within {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(24, 160, 251, 0.1);
+}
+
+
+/* Slider Wrappers */
+.slider-wrapper {
+  position: relative;
+  flex: 1;
+  height: 34px;
+  /* Standardized height V 0.0.74 */
+  border-radius: 12px;
+  border: 1px solid #ececec;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  appearance: none;
+  isolation: isolate;
+  /* Equal padding all around per Figma */
+  padding: 4px;
+  background-origin: content-box;
+  background-clip: content-box;
+}
+
+body:not(.light-theme) .slider-wrapper {
+  border-color: #404040;
+}
+
+.slider-track-sliver {
+  position: absolute;
+  /* Inset vertically to match padding, horizontally to align with thumb center */
+  inset: 4px;
+  border-radius: 99px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Slider Overlay Removed for vibrancy in V 0.0.64 */
+
+.hue-slider-wrapper {
+  background: linear-gradient(90deg, #FF0000 0%, #FFE100 20%, #15FF00 40%, #00F2FF 60%, #3C00FF 80%, #FF0000 100%);
+}
+
+.vivid-slider-wrapper {
+  background: #f3f3f3;
+}
+
+.slider-wrapper input[type="range"] {
+  position: relative;
+  margin: 0;
+  background: transparent;
+  height: 100%;
+  width: 100%;
+  z-index: 3;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Value Badges */
+.value-badge {
+  background: #F3F3F3;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12.284px;
+  width: 75px;
+  /* Unified Alignment width */
+  height: 30.711px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.value-badge span {
+  font-family: var(--font-family-base);
+  font-weight: 500;
+  font-size: 10.7px;
+  /* Match Figma 10.749px */
+  color: #3C3C3C;
+  text-align: center;
+}
+
+body:not(.light-theme) .value-badge {
+  background: #2A2A2A;
+}
+
+body:not(.light-theme) .value-badge span {
+  color: #E2E2E2;
+}
+
+/* Sliders (range thumb) */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px;
+  /* Exact Figma width */
+  height: 24px;
+  /* Exact Figma height */
+  /* 2px rounded line via SVG, 4px height per request */
+  background: #FFFFFF url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="2" height="4"><rect x="0" y="0" width="2" height="4" rx="1" fill="black"/></svg>') no-repeat center;
+  background-size: 2px 4px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0px 2.303px 5.912px rgba(0, 0, 0, 0.12), 0px 0px 1.536px rgba(0, 0, 0, 0.11);
+  border-radius: 9px;
+  cursor: pointer;
+  z-index: 3;
+  position: relative;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: none;
+}
+
+/* --- Footer Actions --- */
+.footer-section {
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+/* --- COMPONENT: BUTTON --- */
+
+/* Dark Theme Overrides */
+body:not(.light-theme) {
+  /* Backgrounds */
+  --bg-app: var(--color-gray-900);
+  --bg-card: var(--color-gray-800);
+  --bg-subtle: #252525;
+
+  /* Text */
+  --text-primary: #FFFFFF;
+  --text-secondary: #A3A3A3;
+
+  /* Borders */
+  --border-subtle: #3D3D3D;
+
+  /* Shadow Tweaks for Dark Mode */
+  --shadow-sm: 0px 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0px 4px 12px rgba(0, 0, 0, 0.3);
+
+  /* In Dark Mode, Primary Action is White (High Contrast) or Accent? 
+     Figma usually inverts. Let's stick onto high contrast monochrome for now. */
+  --action-primary-bg: #FFFFFF;
+  --action-primary-bg-hover: #F0F0F0;
+  --action-primary-text: #000000;
+}
+
+/* ... (skip to button) ... */
+
+/* --- COMPONENT: BUTTON --- */
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+
+  height: 44px;
+  /* Scaled down from 48px to match ~43px */
+  padding: 0 var(--space-4);
+
+  border: none;
+  border-radius: var(--radius-pill);
+
+  font-family: var(--font-family-base);
+  font-size: 13px;
+  /* Smaller font match */
+  font-weight: 600;
+
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Disable select */
+  user-select: none;
+
+  /* Centering & Gap V 0.0.78 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  min-height: 48px;
+}
+
+.btn-icon {
+  font-size: 18px;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn--primary {
+  /* Reverting to Black (Light Mode) per Figma Screenshot */
+  background-color: #111111;
+  color: #FFFFFF;
+
+  /* Subtle shadow */
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.btn--primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn--primary:active {
+  transform: scale(0.97) translateY(0);
+}
+
+
+
+.version-text {
+  font-size: 12px;
+  color: #9E9E9E;
+  /* Figma specific */
+  text-align: center;
+  font-weight: 500;
+}
+
+/* --- Utility Classes --- */
+.hidden {
+  display: none !important;
+}
+
+/* --- Toggles (iOS Style) --- */
+
+
+/* --- List Rows (Cards) --- */
+.list-header {
+  display: flex;
+  padding: 0 16px 8px 16px;
+  /* Matched to content padding */
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.list-row {
+  display: flex;
+  align-items: center;
+  height: 64px;
+  /* Taller rows per screenshot */
+  background: var(--bg-card);
+  border-radius: 12px;
+  /* Individual cards if desired, or rows */
+  padding: 0 16px;
+  box-shadow: var(--shadow-sm);
+  /* Subtle card definition */
+  margin-bottom: 0px;
+  /* If distinct cards */
+  position: relative;
+  transition: background 0.1s;
+}
+
+.list-row:hover {
+  background: var(--bg-hover);
+}
+
+.list-row__cell {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  /* Larger font */
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.cell-ratio {
+  flex: 0 0 120px;
+  font-weight: 600;
+  font-feature-settings: "tnum";
+}
+
+.cell-name {
+  flex: 1;
+  justify-content: flex-start;
+}
+
+.cell-color {
+  flex: 0 0 60px;
+  justify-content: flex-end;
+}
+
+/* Status Icons */
+.status-icon {
+  width: 16px;
+  height: 16px;
+  margin-left: 6px;
+}
+
+.status-icon--pass {
+  color: #34C759;
+}
+
+.status-icon--fail {
+  color: #FF3B30;
+}
+
+/* Color Pill */
+.color-pill {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  /* Squircle */
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  /* Subtle border for white */
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+/* Consolidated .palette-container below */
+
+.column {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.row {
+  display: flex !important;
+  flex-direction: row !important;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.w-full {
+  width: 100%;
+}
+
+/* Material Symbols */
+.material-symbols-rounded {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20;
+  font-size: 20px;
+}
+
+/* --- COMPONENT: LIST / TABLE (Parity) --- */
+
+.palette-container {
+  flex: 1;
+  min-height: 0;
+}
+
+.palette-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 16px;
+  /* 18px vertical breathing room */
+  display: flex;
+  flex-direction: column;
+  row-gap: 8px;
+  /* Added as requested */
+}
+
+body:not(.light-theme) .palette-container {
+  border-color: #404040;
+}
+
+/* Header */
+.list-header {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: center;
+  padding: 15.35px 16px;
+  border-bottom: 0.768px solid #ececec;
+  background: var(--bg-card);
+}
+
+.list-header .cell {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: #3c3c3c;
+  text-transform: none;
+  display: flex;
+  justify-content: center;
+  /* Strict Centering */
+}
+
+body:not(.light-theme) .list-header {
+  border-bottom-color: #404040;
+}
+
+body:not(.light-theme) .list-header .cell {
+  color: #A3A3A3;
+}
+
+/* --- COMPONENT: LIST ROW --- */
+.list-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: center;
+  height: 44px;
+  /* Exact Figma height */
+  border-bottom: none;
+  /* Removed as we use gap now */
+  cursor: pointer;
+  transition: background 0.15s ease, height 0.25s ease, opacity 0.25s ease, transform 0.25s ease;
+  border-radius: 8px;
+  /* Slight rounding for floating rows */
+  box-shadow: none !important;
+  /* Explicitly removed */
+  will-change: transform, opacity, height;
+}
+
+.list-row.new-row {
+  animation: row-enter 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.list-row.removing {
+  animation: row-exit 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes row-enter {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+    height: 0;
+    margin-bottom: 0;
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    height: 44px;
+    margin-bottom: 8px;
+  }
+}
+
+@keyframes row-exit {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    height: 44px;
+    margin-bottom: 8px;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(0.9);
+    height: 0;
+    margin-bottom: 0;
+  }
+}
+
+.list-row:hover {
+  background: #fbfbfb;
+}
+
+body:not(.light-theme) .list-row {
+  border-bottom-color: #323232;
+}
+
+body:not(.light-theme) .list-row:hover {
+  background: #2a2a2a;
+}
+
+.list-row__cell {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 500;
+  font-size: 14px;
+  color: #3c3c3c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Strict Centering */
+  gap: 4px;
+  white-space: nowrap;
+}
+
+body:not(.light-theme) .list-row__cell {
+  color: #FFFFFF;
+}
+
+.list-row__cell.cell-name {
+  font-family: var(--font-family-mono);
+}
+
+.list-row__cell.cell-color {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  /* For absolute button positioning */
+}
+
+.delete-stop-btn {
+  position: absolute;
+  right: 12px;
+  /* Position to the right of the swatch */
+  font-size: 16px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  opacity: 0;
+  /* Hidden by default */
+  transform: translateX(5px);
+}
+
+.list-row:hover .delete-stop-btn {
+  opacity: 0.6;
+  transform: translateX(0);
+}
+
+.delete-stop-btn:hover {
+  opacity: 1 !important;
+  background: rgba(255, 59, 48, 0.1);
+  color: #FF3B30;
+}
+
+.list-row__cell.cell-color {
+  justify-content: center;
+}
+
+.color-pill {
+  width: 32px;
+  height: 32px;
+  border-radius: 11.232px;
+  border: 0.768px solid #ececec;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.02);
+}
+
+.status-icon {
+  font-size: 14px;
+  /* Slightly larger like Figma icons */
+  display: flex;
+  align-items: center;
+}
+
+.status-icon.warning {
+  color: #FF3B30;
+}
+
+.status-icon.check {
+  color: #34C759;
+}
+
+/* Sidebar Removed in V 0.0.35 flattening */
+#gradient-sidebar {
+  display: none;
+}
+
+.insertion-row {
+  height: 12px;
+  /* Target area for hover */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  position: relative;
+  z-index: 10;
+  margin: -6px 0;
+  /* Center over the 8px gap */
+  cursor: pointer;
+}
+
+.insertion-row:hover {
+  opacity: 1;
+}
+
+
+.insert-btn {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #0085FF;
+  /* Vibrant Figma Blue */
+  color: white;
+  border: none;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.1s, background 0.2s;
+}
+
+.insert-btn:hover {
+  transform: scale(1.1);
+}
+
+.insert-btn:hover {
+  transform: scale(1.1);
+}
+
+/* Sidebar Stops (Visualizer) */
+.stop-dot {
+  position: absolute;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* Toggle Icon inside Thumb */
+.thumb-icon-svg {
+  width: 10px;
+  height: 8px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.thumb-icon-svg path {
+  stroke: var(--text-primary);
+}
+
+/* Show icon when generic active class is present */
+.smart-switch.active .thumb-icon-svg {
+  opacity: 1;
+}
+
+/* --- COMPONENT: FOOTER --- */
+.plugin-footer {
+  flex-shrink: 0;
+  padding: 16px;
+  gap: 12px;
+  position: relative;
+}
+
+.footer-row {
+  width: 100%;
+}
+
+.footer-info {
+  display: flex;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+/* Resize Handle */
+.resizer-handle {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+/* --- PALETTE SIDEBAR (V 0.0.79) --- */
+.main-content-row {
+  display: flex;
+  flex-direction: row;
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.palette-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+
+/* Secondary Button (Ghost/Outline) */
+.btn-secondary {
+  height: 32px;
+  padding: 0 16px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-family-base);
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-subtle);
+  border-color: var(--text-secondary);
+}
+
+/* Tertiary Button (Text Only / Subtle) */
+.btn-tertiary {
+  height: 32px;
+  padding: 0 16px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-family-base);
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btn-tertiary:hover {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+}
+
+.palette-pills {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.palette-pill {
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  border: 0.768px solid #ececec;
+  background: #888888;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.palette-pill:hover {
+  transform: scale(1.1);
+}
+
+.palette-pill--active {
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+  border-width: 2px;
+  border-color: var(--text-primary);
+}
+
+.palette-pill--add {
+  background: #e3e3e3;
+  color: #000;
+}
+
+body:not(.light-theme) .palette-pill--add {
+  background: #3d3d3d;
+  color: #fff;
+}
+
+body:not(.light-theme) .palette-pill {
+  border-color: #404040;
+}
+
+body:not(.light-theme) .palette-pill--active {
+  border-color: #fff;
+}
+
+/* --- REFINE MODAL (V 0.0.79 Pixel Perfect) --- */
+.modal-overlay {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+}
+
+.modal-card {
+  background: var(--bg-card);
+  border-radius: 20px;
+  box-shadow: var(--shadow-md);
+  border: 0.768px solid var(--border-subtle);
+  width: 320px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body:not(.light-theme) .modal-card {
+  border-color: #404040;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  border-bottom: 0.768px solid var(--border-subtle);
+  background: var(--bg-card);
+}
+
+body:not(.light-theme) .modal-header {
+  border-color: #404040;
+}
+
+.modal-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-family-base);
+}
+
+.modal-close-btn {
+  width: 44px;
+  height: 44px;
+  background: var(--bg-subtle);
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s;
+}
+
+body:not(.light-theme) .modal-close-btn {
+  background: #333;
+  color: #fff;
+}
+
+.modal-close-btn:hover {
+  background: #e0e0e0;
+}
+
+body:not(.light-theme) .modal-close-btn:hover {
+  background: #444;
+}
+
+.control-section {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-row {
+  padding: 16px 24px;
+  border-bottom: 0.768px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+body:not(.light-theme) .modal-row {
+  border-color: #404040;
+}
+
+/* Last row might still need border if previews come after? */
+
+.modal-row-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.label-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: #888;
+}
+
+.value-pill {
+  background: var(--bg-subtle);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 40px;
+  text-align: center;
+}
+
+body:not(.light-theme) .value-pill {
+  background: #333;
+}
+
+/* Custom Slider Styling */
+input[type=range].rainbow-slider {
+  background: linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%);
+}
+
+.modal-footer {
+  padding: 24px;
+  display: flex;
+  gap: 12px;
+  background: var(--bg-card);
+  /* Ensure matches card */
+  margin-top: auto;
+}
+
+.btn-pill {
+  flex: 1;
+  height: 48px;
+  border-radius: 99px;
+  font-size: 16px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.1s;
+}
+
+.btn-pill:active {
+  transform: scale(0.98);
+}
+
+.btn-pill-secondary {
+  background: #E5E5E5;
+  color: #3c3c3c;
+}
+
+.btn-pill-primary {
+  background: #000;
+  color: #fff;
+}
+
+body:not(.light-theme) .btn-pill-primary {
+  background: #fff;
+  color: #000;
+}
+
+body:not(.light-theme) .btn-pill-secondary {
+  background: #333;
+  color: #fff;
+}
