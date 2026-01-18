@@ -41,7 +41,15 @@ figma.ui.onmessage = async (msg) => {
         }
 
         // Default: Create Mode (Frame Generation + Optional Variables)
-        const { name: baseColorName, createVariables, swatches } = payload;
+        const { name: baseColorName, swatches } = payload;
+        const createVariables = true; // FORCED DEBUGGING
+
+        // DEBUG: Confirm we received the request to create variables
+        if (createVariables) {
+            console.log("Debug: createVariables is TRUE");
+        } else {
+            console.log("Debug: createVariables is FALSE or Undefined");
+        }
 
         if (!isValidPayload(payload)) {
             figma.notify('Error: Invalid palette data received');
@@ -73,18 +81,28 @@ figma.ui.onmessage = async (msg) => {
         let varPaletteName = baseColorName;
 
         if (createVariables) {
-            const collectionName = "[primitive] colors"; // Restored from backup
-            const collections = await figma.variables.getLocalVariableCollectionsAsync();
-            collection = collections.find(c => c.name === collectionName) || figma.variables.createVariableCollection(collectionName);
+            try {
+                const collectionName = "[primitive] colors"; // Restored from backup
+                console.log("Debug: Fetching collections...");
+                const collections = await figma.variables.getLocalVariableCollectionsAsync();
+                console.log("Debug: Found collections:", collections.map(c => c.name));
 
-            // Name collision check
-            const allVariables = await figma.variables.getLocalVariablesAsync('COLOR');
-            const existingVars = allVariables.filter(v => v.variableCollectionId === collection!.id);
+                collection = collections.find(c => c.name === collectionName) || figma.variables.createVariableCollection(collectionName);
+                console.log("Debug: Target collection:", collection.id, collection.name);
 
-            let counter = 1;
-            while (existingVars.some(v => v.name.startsWith(`${varPaletteName}/`))) {
-                varPaletteName = `${baseColorName} ${counter}`;
-                counter++;
+                // Name collision check
+                const allVariables = await figma.variables.getLocalVariablesAsync('COLOR');
+                const existingVars = allVariables.filter(v => v.variableCollectionId === collection!.id);
+
+                let counter = 1;
+                while (existingVars.some(v => v.name.startsWith(`${varPaletteName}/`))) {
+                    varPaletteName = `${baseColorName} ${counter}`;
+                    counter++;
+                }
+            } catch (error: any) {
+                console.error("Failed to access variables:", error);
+                figma.notify(`Error creating tokens: ${error.message || error}`, { error: true });
+                // We don't return here, we allow the visual palette to still be generated
             }
         }
 
@@ -169,14 +187,17 @@ figma.ui.onmessage = async (msg) => {
             container.appendChild(card);
 
             // 4. Create Variable
+            // 4. Create Variable
             if (createVariables && collection) {
-                const varName = `${varPaletteName}/${swatch.stop}`;
-                // Note: The backup used line 156: createVariable.
-                // It didn't have the "Database/Update" logic here, just create. 
-                // That's fine for "Generate New".
-                const variable = figma.variables.createVariable(varName, collection.id, 'COLOR');
-                variable.setValueForMode(collection.modes[0].modeId, figmaColor);
-                colorBlockShape.fills = [figma.variables.setBoundVariableForPaint(colorBlockShape.fills[0] as SolidPaint, 'color', variable)];
+                try {
+                    const varName = `${varPaletteName}/${swatch.stop}`;
+                    const variable = figma.variables.createVariable(varName, collection.id, 'COLOR');
+                    variable.setValueForMode(collection.modes[0].modeId, figmaColor);
+                    colorBlockShape.fills = [figma.variables.setBoundVariableForPaint(colorBlockShape.fills[0] as SolidPaint, 'color', variable)];
+                } catch (e: any) {
+                    console.error(`Failed to create variable ${swatch.stop}:`, e);
+                    figma.notify(`Failed to create token for ${swatch.stop}: ${e.message}`, { error: true });
+                }
             }
         }
 
@@ -343,45 +364,51 @@ async function updatePaletteVariables(payload: FigmaExportPayload) {
     const { paletteId, swatches } = payload;
     if (!paletteId) return;
 
-    // 1. Get/Create Target Collection
-    const collectionName = "[primitive] colors";
-    const collections = await figma.variables.getLocalVariableCollectionsAsync();
-    let collection = collections.find(c => c.name === collectionName);
+    try {
+        // 1. Get/Create Target Collection
+        const collectionName = "[primitive] colors";
+        const collections = await figma.variables.getLocalVariableCollectionsAsync();
+        let collection = collections.find(c => c.name === collectionName);
 
-    if (!collection) {
-        collection = figma.variables.createVariableCollection(collectionName);
-    }
-
-    const collectionId = collection.id;
-    const modeId = collection.modes[0].modeId;
-
-    // 2. Get existing variables strictly from this collection
-    const allVariables = await figma.variables.getLocalVariablesAsync('COLOR');
-    const paletteVariables = allVariables.filter(v =>
-        v.variableCollectionId === collectionId &&
-        v.name.startsWith(paletteId + '/')
-    );
-
-    // 2. Loop through payload swatches and update/create
-    for (const swatch of swatches) {
-        const varName = `${paletteId}/${swatch.stop}`;
-        const existingVar = paletteVariables.find(v => v.name === varName);
-        const figmaColor = { r: swatch.color.r, g: swatch.color.g, b: swatch.color.b };
-
-        if (existingVar) {
-            existingVar.setValueForMode(modeId, figmaColor);
-        } else {
-            const newVar = figma.variables.createVariable(varName, collectionId as string, 'COLOR');
-            newVar.setValueForMode(modeId, figmaColor);
+        if (!collection) {
+            collection = figma.variables.createVariableCollection(collectionName);
         }
-    }
 
-    // 3. Strict Sync: Remove variables that are no longer in the payload
-    const newStopNames = swatches.map(s => `${paletteId}/${s.stop}`);
-    for (const v of paletteVariables) {
-        if (!newStopNames.includes(v.name)) {
-            v.remove();
+        const collectionId = collection.id;
+        const modeId = collection.modes[0].modeId;
+
+        // 2. Get existing variables strictly from this collection
+        const allVariables = await figma.variables.getLocalVariablesAsync('COLOR');
+        const paletteVariables = allVariables.filter(v =>
+            v.variableCollectionId === collectionId &&
+            v.name.startsWith(paletteId + '/')
+        );
+
+        // 2. Loop through payload swatches and update/create
+        for (const swatch of swatches) {
+            const varName = `${paletteId}/${swatch.stop}`;
+            const existingVar = paletteVariables.find(v => v.name === varName);
+            const figmaColor = { r: swatch.color.r, g: swatch.color.g, b: swatch.color.b };
+
+            if (existingVar) {
+                existingVar.setValueForMode(modeId, figmaColor);
+            } else {
+                const newVar = figma.variables.createVariable(varName, collectionId as string, 'COLOR');
+                newVar.setValueForMode(modeId, figmaColor);
+            }
         }
+
+        // 3. Strict Sync: Remove variables that are no longer in the payload
+        const newStopNames = swatches.map(s => `${paletteId}/${s.stop}`);
+        for (const v of paletteVariables) {
+            if (!newStopNames.includes(v.name)) {
+                v.remove();
+            }
+        }
+    } catch (error: any) {
+        console.error("Failed to update variables:", error);
+        figma.notify(`Error updating tokens: ${error.message || error}`, { error: true });
+        throw error; // Re-throw to stop subsequent logic if needed
     }
 }
 

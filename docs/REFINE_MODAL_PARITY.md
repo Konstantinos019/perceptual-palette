@@ -6,7 +6,7 @@
 
 ## Figma Design Screenshot
 
-![Figma Design](file:///Users/kdimitropoulos/.gemini/antigravity/scratch/smart-palette/docs/refine-modal-design.png)
+![Figma Design](file:///Users/kdimitropoulos/.gemini/antigravity/scratch/perceptual-palette/docs/refine-modal-design.png)
 
 ---
 

@@ -1,12 +1,12 @@
 # Color Generation Algorithms Documentation
 
-> Detailed technical documentation of the palette generation logic in Smart Palette
+> Detailed technical documentation of the palette generation logic in Perceptual Palette
 
 ---
 
 ## Overview
 
-Smart Palette offers two color generation modes:
+Perceptual Palette offers two color generation modes:
 
 | Mode | Function | Purpose |
 |------|----------|---------|
@@ -42,7 +42,7 @@ For each stop in [100, 200, 300, 400, 500, 600, 700, 800, 900]:
 ```
 
 ### Code Location
-- **File:** [colorLogic.ts](file:///Users/kdimitropoulos/.gemini/antigravity/scratch/smart-palette/src/colorLogic.ts#L136-L181)
+- **File:** [colorLogic.ts](file:///Users/kdimitropoulos/.gemini/antigravity/scratch/perceptual-palette/src/colorLogic.ts#L136-L181)
 - **Helper:** `createSwatch()` (lines 263-323)
 
 ### Known Issues
@@ -98,7 +98,7 @@ For each stop in [100, 200, 300, 400, 500, 600, 700, 800, 900]:
 | 1000 | 0.00 | Pure Black |
 
 ### Code Location
-- **File:** [colorLogic.ts](file:///Users/kdimitropoulos/.gemini/antigravity/scratch/smart-palette/src/colorLogic.ts#L53-L128)
+- **File:** [colorLogic.ts](file:///Users/kdimitropoulos/.gemini/antigravity/scratch/perceptual-palette/src/colorLogic.ts#L53-L128)
 - **Helper:** `findMaxChroma()` (lines 19-36)
 
 ### Known Issues
@@ -143,7 +143,7 @@ Attempts to name a color by finding the closest match in a predefined palette.
 
 ## Test Coverage
 
-Location: [colorLogic.test.ts](file:///Users/kdimitropoulos/.gemini/antigravity/scratch/smart-palette/src/colorLogic.test.ts)
+Location: [colorLogic.test.ts](file:///Users/kdimitropoulos/.gemini/antigravity/scratch/perceptual-palette/src/colorLogic.test.ts)
 
 | Test | Mode | Status |
 |------|------|--------|

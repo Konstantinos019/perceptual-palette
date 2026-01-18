@@ -1,11 +1,16 @@
 {
   "name": "Perceptual Palette",
-  "id": "perceptual-palette-plugin",
+  "id": "1594798706522185432",
   "api": "1.0.0",
   "main": "dist/code.js",
   "ui": "dist/src/ui.html",
   "capabilities": [],
   "enableProposedApi": false,
+  "networkAccess": {
+    "allowedDomains": [
+      "none"
+    ]
+  },
   "editorType": [
     "figma"
   ]

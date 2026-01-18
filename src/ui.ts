@@ -208,8 +208,8 @@ function render(swatches: SwatchResult[]) {
 
     // Status Icon Helper (Material Symbols Rounded)
     const getStatusIcon = (passed: boolean) => passed ?
-        `<span class="material-symbols-rounded status-icon check">check_circle</span>` :
-        `<span class="material-symbols-rounded status-icon warning">warning</span>`;
+        `<span class="status-icon check"><svg class="icon-svg"><use href="#icon-check_circle"></use></svg></span>` :
+        `<span class="status-icon warning"><svg class="icon-svg"><use href="#icon-warning"></use></svg></span>`;
 
     // 0. WHITE PLACEHOLDER (Reference)
     const whiteRow = document.createElement('div');
@@ -270,7 +270,7 @@ function render(swatches: SwatchResult[]) {
         const isIntermediate = !STANDARD_STOPS.includes(Number(s.stop)) && !s.isAnchor;
         let deleteBtnHtml = '';
         if (isIntermediate) {
-            deleteBtnHtml = `<span class="delete-stop-btn material-symbols-rounded" title="Remove stop">delete</span>`;
+            deleteBtnHtml = `<span class="delete-stop-btn" title="Remove stop"><svg class="icon-svg" style="font-size: 16px;"><use href="#icon-delete"></use></svg></span>`;
         }
 
         const rowVal = formatColumnValue(isPerceptual ? (s.lch?.l || 0) : parseFloat(contrast), isPerceptual);
@@ -1281,19 +1281,19 @@ function updateButtonState() {
         // The implementation plan says update innerHTML of exportBtn but current HTML might lose icon.
         // Let's replace the whole innerHTML to be safe
         exportBtn.innerHTML = `
-            <span class="material-symbols-rounded btn-icon">save</span>
+            <svg class="icon-svg btn-icon"><use href="#icon-save"></use></svg>
             <span id="btn-text">Save Changes</span>
         `;
     } else if (originalPaletteData && !isDirty) {
         // Editing existing palette with NO changes
         exportBtn.innerHTML = `
-            <span class="material-symbols-rounded btn-icon" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+            <svg class="icon-svg btn-icon"><use href="#icon-check_circle_filled"></use></svg>
             <span id="btn-text">Saved</span>
         `;
     } else {
         // Creating new palette
         exportBtn.innerHTML = `
-             <span class="material-symbols-rounded btn-icon" style="font-variation-settings: 'FILL' 1;">palette</span>
+             <svg class="icon-svg btn-icon"><use href="#icon-palette"></use></svg>
              <span id="btn-text">Generate Palette</span>
         `;
         exportBtn.classList.remove('btn--save');
