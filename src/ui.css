@@ -1477,14 +1477,13 @@ body:not(.light-theme) .list-row__cell {
   opacity: 0.4;
 }
 
-/* --- PALETTE SIDEBAR (V 0.0.79) --- */
+/* --- PALETTE SIDEBAR (V 0.0.80) --- */
 .main-content-row {
   display: flex;
   flex-direction: row;
   gap: 14px;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
 }
 
 .palette-sidebar {
@@ -1594,7 +1593,7 @@ body:not(.light-theme) .palette-pill--active {
   border-color: #fff;
 }
 
-/* --- REFINE MODAL (V 0.0.79 Pixel Perfect) --- */
+/* --- REFINE MODAL (V 0.0.80 Pixel Perfect) --- */
 .modal-overlay {
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(4px);

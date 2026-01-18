@@ -1,5 +1,6 @@
 /// <reference types="@figma/plugin-typings" />
 import type { FigmaExportPayload } from './types';
+import { figmaRgbToHex } from './colorLogic';
 
 figma.showUI(__html__, { width: 525, height: 900, themeColors: true });
 
@@ -31,7 +32,7 @@ figma.ui.onmessage = async (msg) => {
     } else if (msg.type === 'EXPORT_TO_FIGMA') {
         const payload = msg.payload as FigmaExportPayload;
 
-        // V 0.0.79: Handle "Save Changes" (Update Mode)
+        // V 0.0.80: Handle "Save Changes" (Update Mode)
         if (payload.action === 'update' && payload.paletteId) {
             await updatePaletteVariables(payload);
             await sendPalettesToUI();
@@ -273,17 +274,10 @@ figma.ui.onmessage = async (msg) => {
     }
 };
 
-// Helper for initial sync only
-function figmaRgbToHex(color: RGB): string {
-    const r = Math.round(color.r * 255).toString(16).padStart(2, '0');
-    const g = Math.round(color.g * 255).toString(16).padStart(2, '0');
-    const b = Math.round(color.b * 255).toString(16).padStart(2, '0');
-    return `#${r}${g}${b}`.toUpperCase();
-}
 
 /**
  * Helper to get all palettes formatted for UI
- * V 0.0.79 Refactor (Preserved)
+ * V 0.0.80 Refactor (Preserved)
  */
 async function getPalettesData() {
     const allVariables = await figma.variables.getLocalVariablesAsync('COLOR');
@@ -343,7 +337,7 @@ async function sendPalettesToUI() {
 }
 
 /**
- * Updates existing variables for a palette (V 0.0.79) (Preserved)
+ * Updates existing variables for a palette (V 0.0.80) (Preserved)
  */
 async function updatePaletteVariables(payload: FigmaExportPayload) {
     const { paletteId, swatches } = payload;

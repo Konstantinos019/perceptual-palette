@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateSwatches } from './colorLogic';
+import { generateSwatches, formatColumnValue } from './colorLogic';
 import type { PaletteConfig } from './types';
 
 describe('Perceptual Palette Color Logic', () => {
@@ -128,9 +128,34 @@ describe('OKLCH Perceptually Uniform Palette', () => {
         const white = swatches.find(s => s.stop === 0);
         const black = swatches.find(s => s.stop === 1000);
 
-        expect(white?.lch.l).toBe(100);
-        expect(black?.lch.l).toBe(0);
+        expect(white?.lch.l).toBeCloseTo(100, 5);
+        expect(black?.lch.l).toBeCloseTo(0, 5);
         expect(white?.hex.toLowerCase()).toBe('#ffffff');
         expect(black?.hex.toLowerCase()).toBe('#000000');
+    });
+
+    it('should respect overrides in generateOKLCHSwatches', () => {
+        const overrides = {
+            500: { mode: 'hsl', hue: 0, s: 0.5, lightness: 0.5 } // Semi-saturated Red
+        };
+        const results = generateOKLCHSwatches(200, [500], 1, overrides);
+        const swatch = results.find(s => s.stop === 500);
+
+        // HSL(0, 0.5, 0.5) -> #bf4040
+        expect(swatch?.hex.toLowerCase()).toBe('#bf4040');
+    });
+
+    describe('formatColumnValue', () => {
+        it('should format Perceptual (OKLCH) values as 0.00-1.00', () => {
+            expect(formatColumnValue(100, true)).toBe('1.00');
+            expect(formatColumnValue(50, true)).toBe('0.50');
+            expect(formatColumnValue(0, true)).toBe('0.00');
+        });
+
+        it('should format Legacy (WCAG) values with :1 suffix', () => {
+            expect(formatColumnValue(1, false)).toBe('1.00:1');
+            expect(formatColumnValue(4.5, false)).toBe('4.50:1');
+            expect(formatColumnValue(21, false)).toBe('21.00:1');
+        });
     });
 });

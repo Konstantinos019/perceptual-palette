@@ -3,6 +3,9 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 
 export default defineConfig({
   plugins: [viteSingleFile()],
+  define: {
+    APP_VERSION: JSON.stringify(process.env.npm_package_version),
+  },
   build: {
     target: 'es6',
     assetsInlineLimit: 100000000,

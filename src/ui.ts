@@ -1,4 +1,4 @@
-import { generateSwatches, generateOKLCHSwatches, wcagContrast, hsl, rgb, lch, hsv, hexToFigmaRgb, getColorName, oklch, formatHex } from './colorLogic';
+import { generateSwatches, generateOKLCHSwatches, wcagContrast, hsl, rgb, lch, hsv, hexToFigmaRgb, getColorName, oklch, formatHex, getContrastBackground, formatColumnValue } from './colorLogic';
 import { DOM_IDS, type PaletteConfig, type SwatchResult, type FigmaExportPayload, type DetectedPalette } from './types';
 
 // State
@@ -11,6 +11,7 @@ interface AppState extends PaletteConfig {
     oklchHue: number;
     oklchVividness: number;
     theme: 'dark' | 'light';
+    anchorTheme: 'dark' | 'light';
 }
 
 const INITIAL_STATE: AppState = {
@@ -22,15 +23,17 @@ const INITIAL_STATE: AppState = {
     paletteMode: 'oklch',
     oklchHue: 297,
     oklchVividness: 1,
-    theme: 'light'
+    theme: 'light',
+    anchorTheme: 'light'
 };
 
 let state: AppState = JSON.parse(JSON.stringify(INITIAL_STATE));
 
 let activeStop: number | 'seed' | null = null;
 let lastAddedStop: number | null = null;
+let lastSwatches: SwatchResult[] = [];
 
-// Figma Tokens Database State (V 0.0.79)
+// Figma Tokens Database State (V 0.0.80)
 let detectedPalettes: DetectedPalette[] = [];
 let selectedPaletteId: string | null = null; // hueName of selected palette
 let originalPaletteData: { stop: number; hex: string }[] | null = null; // Snapshot for dirty-checking (Phase 2)
@@ -41,43 +44,51 @@ export function hasPendingChanges(): boolean {
     return isDirty && originalPaletteData !== null;
 }
 
+// Security & Robustness Helpers
+function getEl<T extends HTMLElement>(id: string): T | null {
+    const el = document.getElementById(id);
+    if (!el) {
+        console.warn(`Element with id "${id}" not found.`);
+        return null;
+    }
+    return el as T;
+}
+
 // Elements
-const colorInput = document.getElementById(DOM_IDS.BASE_COLOR_INPUT) as HTMLInputElement;
-const colorPicker = document.getElementById('base-color-picker') as HTMLInputElement;
-const container = document.getElementById(DOM_IDS.STOPS_CONTAINER) as HTMLElement;
-const modal = document.getElementById(DOM_IDS.REFINE_MODAL) as HTMLElement;
-// const modalContent = modal?.querySelector('.params-card') as HTMLElement; // For click-outside check
-const exportBtn = document.getElementById(DOM_IDS.EXPORT_BTN) as HTMLButtonElement;
-const resetBtn = document.getElementById('reset-plugin') as HTMLButtonElement;
-const hueSlider = document.getElementById('hue-slider') as HTMLInputElement;
-const chromaSlider = document.getElementById('chroma-slider') as HTMLInputElement;
-const hueVal = document.getElementById('hue-val') as HTMLElement;
-const chromaVal = document.getElementById('chroma-val') as HTMLElement;
+const colorInput = getEl<HTMLInputElement>(DOM_IDS.BASE_COLOR_INPUT);
+const colorPicker = getEl<HTMLInputElement>('base-color-picker');
+const container = getEl<HTMLElement>(DOM_IDS.STOPS_CONTAINER);
+const modal = getEl<HTMLElement>(DOM_IDS.REFINE_MODAL);
+const exportBtn = getEl<HTMLButtonElement>(DOM_IDS.EXPORT_BTN);
+const resetBtn = getEl<HTMLButtonElement>('reset-plugin');
+const hueSlider = getEl<HTMLInputElement>('hue-slider');
+const chromaSlider = getEl<HTMLInputElement>('chroma-slider');
+const hueVal = getEl<HTMLElement>('hue-val');
+const chromaVal = getEl<HTMLElement>('chroma-val');
 
 // Mode Toggle Elements
-const modeLegacyBtn = document.getElementById('mode-legacy') as HTMLButtonElement;
-const modeOklchBtn = document.getElementById('mode-oklch') as HTMLButtonElement;
-const oklchHueSlider = document.getElementById('oklch-hue-slider') as HTMLInputElement;
-const oklchHueValue = document.getElementById('oklch-hue-value') as HTMLElement;
-const oklchVividnessSlider = document.getElementById('oklch-vividness-slider') as HTMLInputElement;
-const oklchVividnessValue = document.getElementById('oklch-vividness-value') as HTMLElement;
-const modeThumb = document.getElementById('mode-thumb') as HTMLElement;
+const modeLegacyBtn = getEl<HTMLButtonElement>('mode-legacy');
+const modeOklchBtn = getEl<HTMLButtonElement>('mode-oklch');
+const oklchHueSlider = getEl<HTMLInputElement>('oklch-hue-slider');
+const oklchHueValue = getEl<HTMLElement>('oklch-hue-value');
+const oklchVividnessSlider = getEl<HTMLInputElement>('oklch-vividness-slider');
+const oklchVividnessValue = getEl<HTMLElement>('oklch-vividness-value');
+const modeThumb = getEl<HTMLElement>('mode-thumb');
 
-const themeToggleBtn = document.getElementById('theme-toggle') as HTMLButtonElement;
-const themeIconDark = document.getElementById('theme-icon-dark') as HTMLElement;
-const themeIconLight = document.getElementById('theme-icon-light') as HTMLElement;
-const tokensToggle = document.getElementById('create-tokens-toggle') as HTMLElement;
+const themeToggleBtn = getEl<HTMLButtonElement>('theme-toggle');
+const themeIconDark = getEl<HTMLElement>('theme-icon-dark');
+const themeIconLight = getEl<HTMLElement>('theme-icon-light');
+const tokensToggle = getEl<HTMLElement>('create-tokens-toggle');
 
-// Sidebar Elements (V 0.0.79)
-const palettePillsContainer = document.getElementById('palette-pills') as HTMLElement;
-const addPaletteBtn = document.getElementById('add-palette-btn') as HTMLButtonElement;
+// Sidebar Elements (V 0.0.80)
+const palettePillsContainer = getEl<HTMLElement>('palette-pills');
+const addPaletteBtn = getEl<HTMLButtonElement>('add-palette-btn');
 
-// Helper to get contrast reference color based on theme
-// Light theme = white background → contrast vs white
-// Dark theme = dark background → contrast vs black
-function getContrastBackground(): string {
-    return state.theme === 'light' ? '#ffffff' : '#000000';
-}
+const anchorThemeToggle = getEl<HTMLElement>('anchor-theme-toggle');
+const anchorThemeRow = getEl<HTMLElement>('tool-anchor-theme');
+const anchorIconDark = getEl<HTMLElement>('anchor-icon-dark');
+const anchorIconLight = getEl<HTMLElement>('anchor-icon-light');
+
 
 /**
  * Syncs the state and UI when a color input changes.
@@ -147,25 +158,39 @@ function syncColorInputs(source: 'hex' | 'sliders') {
 }
 
 function getSwatches(): SwatchResult[] {
-    if (state.paletteMode === 'oklch') {
-        return generateOKLCHSwatches(state.oklchHue, state.stops, state.oklchVividness);
-    }
-    return generateSwatches(state);
+    const swatches = state.paletteMode === 'oklch'
+        ? generateOKLCHSwatches(state.oklchHue, state.stops, state.oklchVividness, state.overrides)
+        : generateSwatches({
+            baseColor: state.baseColor,
+            stops: state.stops,
+            overrides: state.overrides,
+            anchorStop: state.anchorStop,
+            anchorTheme: state.anchorTheme
+        });
+
+    // Post-process with contrast against theme
+    const bg = getContrastBackground(state.theme);
+    swatches.forEach(s => {
+        s.contrastWithNext = wcagContrast(s.hex, bg);
+    });
+
+    return swatches;
 }
 
 function update() {
     try {
-        const swatches = getSwatches();
-        render(swatches);
+        lastSwatches = getSwatches();
+        render(lastSwatches);
     } catch (e) {
         console.error('Update failed', e);
     }
 }
 
 function render(swatches: SwatchResult[]) {
-    // V 0.0.79: Dirty State Checking
+    // V 0.0.80: Dirty State Checking
     checkDirty();
 
+    if (!container) return;
     container.innerHTML = '';
 
     // Update table header based on mode
@@ -189,8 +214,8 @@ function render(swatches: SwatchResult[]) {
     // 0. WHITE PLACEHOLDER (Reference)
     const whiteRow = document.createElement('div');
     whiteRow.className = 'list-row placeholder';
-    // White is always L=1.00 or Contrast=1.00
-    const whiteVal = isPerceptual ? "1.00" : "1.00";
+    // White is always L=100 or Contrast=1.00
+    const whiteVal = formatColumnValue(isPerceptual ? 100 : 1.0, isPerceptual);
     whiteRow.innerHTML = `
         <div class="list-row__cell">${whiteVal} ${getStatusIcon(false)}</div>
         <div class="list-row__cell cell-name">White</div>
@@ -198,7 +223,7 @@ function render(swatches: SwatchResult[]) {
             <div class="color-pill" style="background-color: #FFFFFF;"></div>
         </div>
     `;
-    container.appendChild(whiteRow);
+    container?.appendChild(whiteRow);
 
     // 0.5. EDGE INSERTION: White <-> First Swatch
     if (swatches.length > 0) {
@@ -222,7 +247,7 @@ function render(swatches: SwatchResult[]) {
                             update();
                         };
                     }
-                    container.appendChild(edgeRowStart);
+                    container?.appendChild(edgeRowStart);
                 }
             } catch (e) { }
         }
@@ -236,7 +261,7 @@ function render(swatches: SwatchResult[]) {
 
         // Calculate contrast
         const hex = s.hex || '#000000';
-        const contrast = wcagContrast(hex, getContrastBackground()).toFixed(2);
+        const contrast = wcagContrast(hex, getContrastBackground(state.theme)).toFixed(2);
         const isPass = parseFloat(contrast) >= 4.5;
 
         let labelId = s.stop.toString();
@@ -248,7 +273,7 @@ function render(swatches: SwatchResult[]) {
             deleteBtnHtml = `<span class="delete-stop-btn material-symbols-rounded" title="Remove stop">delete</span>`;
         }
 
-        const rowVal = isPerceptual ? (s.lch?.l / 100).toFixed(2) : contrast;
+        const rowVal = formatColumnValue(isPerceptual ? (s.lch?.l || 0) : parseFloat(contrast), isPerceptual);
 
         row.innerHTML = `
             <div class="list-row__cell">
@@ -285,7 +310,7 @@ function render(swatches: SwatchResult[]) {
             openRefine(s);
         };
 
-        container.appendChild(row);
+        container?.appendChild(row);
 
         // 2. INSERTION POINT (Between this and next)
         const currentStop = Number(s.stop);
@@ -306,14 +331,14 @@ function render(swatches: SwatchResult[]) {
                     update();
                 };
             }
-            container.appendChild(insertionRow);
+            container?.appendChild(insertionRow);
         }
     });
 
     // 4. BLACK PLACEHOLDER
     const blackRow = document.createElement('div');
     blackRow.className = 'list-row placeholder';
-    const blackVal = isPerceptual ? "0.00" : "21.00";
+    const blackVal = formatColumnValue(isPerceptual ? 0 : 21.0, isPerceptual);
     blackRow.innerHTML = `
         <div class="list-row__cell">${blackVal} ${getStatusIcon(true)}</div>
         <div class="list-row__cell cell-name">Black</div>
@@ -321,7 +346,7 @@ function render(swatches: SwatchResult[]) {
             <div class="color-pill" style="background-color: #000000;"></div>
         </div>
     `;
-    container.appendChild(blackRow);
+    container?.appendChild(blackRow);
 
     // Reset animation state
     lastAddedStop = null;
@@ -330,8 +355,8 @@ function render(swatches: SwatchResult[]) {
 function openRefine(swatch: SwatchResult) {
     console.log('Opening refine modal for:', swatch);
     activeStop = swatch.isOriginal ? 'seed' : swatch.stop;
-    const title = document.getElementById('modal-stop-title') as HTMLElement;
-    title.innerText = swatch.isOriginal ? `Refine Original Color` : `Refine Stop ${swatch.stop}`;
+    const title = getEl<HTMLElement>('modal-stop-title');
+    if (title) title.innerText = swatch.isOriginal ? `Refine Original Color` : `Refine Stop ${swatch.stop}`;
 
     // 1. Capture original algorithmic color (no overrides)
     const tempState = { ...state, overrides: {} };
@@ -349,8 +374,10 @@ function openRefine(swatch: SwatchResult) {
         }
     }
 
-    modal.classList.remove('hidden');
-    modal.style.display = 'flex';
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+    }
     const override = state.overrides[activeStop as number];
     const mode = override ? (override.mode || 'hsl') : 'hsl';
     switchMode(mode);
@@ -423,13 +450,20 @@ function syncSliders(mode: string) {
         const s = (override.s ?? 0) * 100;
         const l = (override.lightness ?? 0) * 100;
 
-        (document.getElementById('hsl-h-slider') as HTMLInputElement).value = String(h);
-        (document.getElementById('hsl-s-slider') as HTMLInputElement).value = String(s);
-        (document.getElementById('hsl-l-slider') as HTMLInputElement).value = String(l);
+        const hslHSlider = getEl<HTMLInputElement>('hsl-h-slider');
+        const hslSSlider = getEl<HTMLInputElement>('hsl-s-slider');
+        const hslLSlider = getEl<HTMLInputElement>('hsl-l-slider');
+        const hslHVal = getEl<HTMLElement>('hsl-h-val');
+        const hslSVal = getEl<HTMLElement>('hsl-s-val');
+        const hslLVal = getEl<HTMLElement>('hsl-l-val');
 
-        (document.getElementById('hsl-h-val') as HTMLElement).innerText = `${Math.round(h)}°`;
-        (document.getElementById('hsl-s-val') as HTMLElement).innerText = `${Math.round(s)}%`;
-        (document.getElementById('hsl-l-val') as HTMLElement).innerText = `${Math.round(l)}%`;
+        if (hslHSlider) hslHSlider.value = String(h);
+        if (hslSSlider) hslSSlider.value = String(s);
+        if (hslLSlider) hslLSlider.value = String(l);
+
+        if (hslHVal) hslHVal.innerText = `${Math.round(h)}°`;
+        if (hslSVal) hslSVal.innerText = `${Math.round(s)}%`;
+        if (hslLVal) hslLVal.innerText = `${Math.round(l)}%`;
 
         updateHSLSliders(h, s, l);
     } else if (mode === 'hsb') {
@@ -453,12 +487,18 @@ function syncSliders(mode: string) {
             v = (override.v ?? 0) * 100;
         }
 
-        (document.getElementById('hsb-h-slider') as HTMLInputElement).value = String(h);
-        (document.getElementById('hsb-s-slider') as HTMLInputElement).value = String(s);
-        (document.getElementById('hsb-b-slider') as HTMLInputElement).value = String(v);
+        const hsbHSlider = getEl<HTMLInputElement>('hsb-h-slider');
+        const hsbSSlider = getEl<HTMLInputElement>('hsb-s-slider');
+        const hsbBSlider = getEl<HTMLInputElement>('hsb-b-slider');
+        const hsbSVal = getEl<HTMLElement>('hsb-s-val');
+        const hsbBVal = getEl<HTMLElement>('hsb-b-val');
 
-        (document.getElementById('hsb-s-val') as HTMLElement).innerText = `${Math.round(s)}%`;
-        (document.getElementById('hsb-b-val') as HTMLElement).innerText = `${Math.round(v)}%`;
+        if (hsbHSlider) hsbHSlider.value = String(h);
+        if (hsbSSlider) hsbSSlider.value = String(s);
+        if (hsbBSlider) hsbBSlider.value = String(v);
+
+        if (hsbSVal) hsbSVal.innerText = `${Math.round(s)}%`;
+        if (hsbBVal) hsbBVal.innerText = `${Math.round(v)}%`;
 
         // Update gradients
         updateHSBSliders(h, s / 100, v / 100);
@@ -471,13 +511,20 @@ function syncSliders(mode: string) {
         const gVal = Math.round((rgb.g || 0) * 255);
         const bVal = Math.round((rgb.b || 0) * 255);
 
-        (document.getElementById('rgb-r-slider') as HTMLInputElement).value = String(rVal);
-        (document.getElementById('rgb-g-slider') as HTMLInputElement).value = String(gVal);
-        (document.getElementById('rgb-b-slider') as HTMLInputElement).value = String(bVal);
+        const rgbRSlider = getEl<HTMLInputElement>('rgb-r-slider');
+        const rgbGSlider = getEl<HTMLInputElement>('rgb-g-slider');
+        const rgbBSlider = getEl<HTMLInputElement>('rgb-b-slider');
+        const rgbRVal = getEl<HTMLElement>('rgb-r-val');
+        const rgbGVal = getEl<HTMLElement>('rgb-g-val');
+        const rgbBVal = getEl<HTMLElement>('rgb-b-val');
 
-        (document.getElementById('rgb-r-val') as HTMLElement).innerText = String(rVal);
-        (document.getElementById('rgb-g-val') as HTMLElement).innerText = String(gVal);
-        (document.getElementById('rgb-b-val') as HTMLElement).innerText = String(bVal);
+        if (rgbRSlider) rgbRSlider.value = String(rVal);
+        if (rgbGSlider) rgbGSlider.value = String(gVal);
+        if (rgbBSlider) rgbBSlider.value = String(bVal);
+
+        if (rgbRVal) rgbRVal.innerText = String(rVal);
+        if (rgbGVal) rgbGVal.innerText = String(gVal);
+        if (rgbBVal) rgbBVal.innerText = String(bVal);
 
         // Update gradients
         updateRGBSliders(rgb.r || 0, rgb.g || 0, rgb.b || 0);
@@ -498,100 +545,125 @@ document.querySelectorAll('.mode-tab').forEach(btn => {
     }
 });
 
-hueSlider.oninput = (e) => {
-    const target = e.target as HTMLInputElement;
-    const h = parseFloat(target.value);
-    state.overrides[activeStop as number] = { ...state.overrides[activeStop as number], hue: h };
-    hueVal.innerText = `${Math.round(h)}°`;
-    update(); updateModalPreview();
-};
-chromaSlider.oninput = (e) => {
-    const target = e.target as HTMLInputElement;
-    const c = parseFloat(target.value);
-    state.overrides[activeStop as number] = { ...state.overrides[activeStop as number], chroma: c };
-    chromaVal.innerText = String(Math.round(c));
-    update(); updateModalPreview();
-};
-(document.getElementById('lch-l-slider') as HTMLInputElement).oninput = (e) => {
-    const target = e.target as HTMLInputElement;
-    const l = parseFloat(target.value);
-    state.overrides[activeStop as number] = { ...state.overrides[activeStop as number], lightness: l };
-    (document.getElementById('lch-l-val') as HTMLElement).innerText = String(Math.round(l));
-    update(); updateModalPreview();
-};
+if (hueSlider) {
+    hueSlider.oninput = (e) => {
+        const target = e.target as HTMLInputElement;
+        const h = parseFloat(target.value);
+        state.overrides[activeStop as number] = { ...state.overrides[activeStop as number], hue: h };
+        if (hueVal) hueVal.innerText = `${Math.round(h)}°`;
+        update(); updateModalPreview();
+    };
+}
+if (chromaSlider) {
+    chromaSlider.oninput = (e) => {
+        const target = e.target as HTMLInputElement;
+        const c = parseFloat(target.value);
+        state.overrides[activeStop as number] = { ...state.overrides[activeStop as number], chroma: c };
+        if (chromaVal) chromaVal.innerText = String(Math.round(c));
+        update(); updateModalPreview();
+    };
+}
+const lchLSlider = getEl<HTMLInputElement>('lch-l-slider');
+const lchLVal = getEl<HTMLElement>('lch-l-val');
+if (lchLSlider) {
+    lchLSlider.oninput = (e) => {
+        const target = e.target as HTMLInputElement;
+        const l = parseFloat(target.value);
+        state.overrides[activeStop as number] = { ...state.overrides[activeStop as number], lightness: l };
+        if (lchLVal) lchLVal.innerText = String(Math.round(l));
+        update(); updateModalPreview();
+    };
+}
 
 // Reset Override
-(document.getElementById('reset-override') as HTMLButtonElement).onclick = () => {
-    const stopKey = activeStop as number;
-    if (activeStop === null) return;
-    delete state.overrides[stopKey];
+const resetOverrideBtn = getEl<HTMLButtonElement>('reset-override');
+if (resetOverrideBtn) {
+    resetOverrideBtn.onclick = () => {
+        const stopKey = activeStop as number;
+        if (activeStop === null) return;
+        delete state.overrides[stopKey];
 
-    const tempState = { ...state, overrides: {} };
-    const baseSwatches = generateSwatches(tempState);
-    const original = activeStop === 'seed' ? baseSwatches.find(x => x.isOriginal) : baseSwatches.find(x => x.stop === activeStop);
+        const tempState = { ...state, overrides: {} };
+        const baseSwatches = generateSwatches(tempState);
+        const original = activeStop === 'seed' ? baseSwatches.find(x => x.isOriginal) : baseSwatches.find(x => x.stop === activeStop);
 
-    if (original) {
-        const cHsl = hsl(original.hex) || { h: 0, s: 0, l: 0 };
-        state.overrides[stopKey] = { mode: 'hsl', hue: cHsl.h || 0, s: cHsl.s || 0, lightness: cHsl.l || 0 };
-    }
+        if (original) {
+            const cHsl = hsl(original.hex) || { h: 0, s: 0, l: 0 };
+            state.overrides[stopKey] = { mode: 'hsl', hue: cHsl.h || 0, s: cHsl.s || 0, lightness: cHsl.l || 0 };
+        }
 
-    switchMode('hsl');
-    update();
-    updateModalPreview();
-};
+        switchMode('hsl');
+        update();
+        updateModalPreview();
+    };
+}
+
+
 
 // HSL Listeners
-(document.getElementById('hsl-h-slider') as HTMLInputElement).oninput = (e) => {
-    const target = e.target as HTMLInputElement;
-    const h = parseFloat(target.value);
+const hslHSlider = getEl<HTMLInputElement>('hsl-h-slider');
+const hslHVal = getEl<HTMLElement>('hsl-h-val');
+const hslSSlider = getEl<HTMLInputElement>('hsl-s-slider');
+const hslLSlider = getEl<HTMLInputElement>('hsl-l-slider');
+if (hslHSlider) {
+    hslHSlider.oninput = (e) => {
+        const target = e.target as HTMLInputElement;
+        const h = parseFloat(target.value);
 
-    // Update State
-    const currentOverride = state.overrides[activeStop as number] || {};
-    state.overrides[activeStop as number] = { ...currentOverride, hue: h };
+        // Update State
+        const currentOverride = state.overrides[activeStop as number] || {};
+        state.overrides[activeStop as number] = { ...currentOverride, hue: h };
 
-    (document.getElementById('hsl-h-val') as HTMLElement).innerText = `${Math.round(h)}°`;
+        if (hslHVal) hslHVal.innerText = `${Math.round(h)}°`;
 
-    // Update Gradients
-    const s = (document.getElementById('hsl-s-slider') as HTMLInputElement).valueAsNumber;
-    const l = (document.getElementById('hsl-l-slider') as HTMLInputElement).valueAsNumber;
-    updateHSLSliders(h, s, l);
+        // Update Gradients
+        const s = hslSSlider?.valueAsNumber || 0;
+        const l = hslLSlider?.valueAsNumber || 0;
+        updateHSLSliders(h, s, l);
 
-    update(); updateModalPreview();
-};
-(document.getElementById('hsl-s-slider') as HTMLInputElement).oninput = (e) => {
-    const target = e.target as HTMLInputElement;
-    const sPct = parseFloat(target.value);
+        update(); updateModalPreview();
+    };
+}
+if (hslSSlider) {
+    hslSSlider.oninput = (e) => {
+        const target = e.target as HTMLInputElement;
+        const sPct = parseFloat(target.value);
 
-    // Update State
-    const currentOverride = state.overrides[activeStop as number] || {};
-    state.overrides[activeStop as number] = { ...currentOverride, s: sPct / 100 };
+        // Update State
+        const currentOverride = state.overrides[activeStop as number] || {};
+        state.overrides[activeStop as number] = { ...currentOverride, s: sPct / 100 };
 
-    (document.getElementById('hsl-s-val') as HTMLElement).innerText = `${Math.round(sPct)}%`;
+        const hslSVal = getEl<HTMLElement>('hsl-s-val');
+        if (hslSVal) hslSVal.innerText = `${Math.round(sPct)}%`;
 
-    // Update Gradients
-    const h = (document.getElementById('hsl-h-slider') as HTMLInputElement).valueAsNumber;
-    const l = (document.getElementById('hsl-l-slider') as HTMLInputElement).valueAsNumber;
-    updateHSLSliders(h, sPct, l);
+        // Update Gradients
+        const h = hslHSlider?.valueAsNumber || 0;
+        const l = hslLSlider?.valueAsNumber || 0;
+        updateHSLSliders(h, sPct, l);
 
-    update(); updateModalPreview();
-};
-(document.getElementById('hsl-l-slider') as HTMLInputElement).oninput = (e) => {
-    const target = e.target as HTMLInputElement;
-    const lPct = parseFloat(target.value);
+        update(); updateModalPreview();
+    };
+}
+if (hslLSlider) {
+    hslLSlider.oninput = (e) => {
+        const target = e.target as HTMLInputElement;
+        const lPct = parseFloat(target.value);
 
-    // Update State
-    const currentOverride = state.overrides[activeStop as number] || {};
-    state.overrides[activeStop as number] = { ...currentOverride, lightness: lPct / 100 };
+        // Update State
+        const currentOverride = state.overrides[activeStop as number] || {};
+        state.overrides[activeStop as number] = { ...currentOverride, lightness: lPct / 100 };
 
-    (document.getElementById('hsl-l-val') as HTMLElement).innerText = `${Math.round(lPct)}%`;
+        const hslLVal = getEl<HTMLElement>('hsl-l-val');
+        if (hslLVal) hslLVal.innerText = `${Math.round(lPct)}%`;
 
-    // Update Gradients
-    const h = (document.getElementById('hsl-h-slider') as HTMLInputElement).valueAsNumber;
-    const s = (document.getElementById('hsl-s-slider') as HTMLInputElement).valueAsNumber;
-    updateHSLSliders(h, s, lPct);
+        // Update Gradients
+        const h = hslHSlider?.valueAsNumber || 0;
+        const s = hslSSlider?.valueAsNumber || 0;
+        updateHSLSliders(h, s, lPct);
 
-    update(); updateModalPreview();
-};
+        update(); updateModalPreview();
+    };
+}
 
 // Helper to update HSL slider backgrounds dynamically
 function updateHSLSliders(h: number, s: number, l: number) {
@@ -633,36 +705,40 @@ function updateHSBSliders(h: number, s: number, v: number) {
 // RGB Listeners
 // HSB Listeners
 ['h', 's', 'b'].forEach(chan => {
-    (document.getElementById(`hsb-${chan}-slider`) as HTMLInputElement).oninput = (e) => {
-        const target = e.target as HTMLInputElement;
-        const val = parseFloat(target.value);
+    const hsbSlider = getEl<HTMLInputElement>(`hsb-${chan}-slider`);
+    if (hsbSlider) {
+        hsbSlider.oninput = (e) => {
+            const target = e.target as HTMLInputElement;
+            const val = parseFloat(target.value);
 
-        // Update Override State
-        const currentOverride = state.overrides[activeStop as number] || {};
-        let h = currentOverride.hue ?? 0;
-        let s = currentOverride.s ?? 0;
-        let v = currentOverride.v ?? 0;
+            // Update Override State
+            const currentOverride = state.overrides[activeStop as number] || {};
+            let h = currentOverride.hue ?? 0;
+            let s = currentOverride.s ?? 0;
+            let v = currentOverride.v ?? 0;
 
-        if (chan === 'h') {
-            h = val;
-            state.overrides[activeStop as number] = { ...currentOverride, hue: val, mode: 'hsb' };
-        } else if (chan === 's') {
-            s = val / 100;
-            state.overrides[activeStop as number] = { ...currentOverride, s: s, mode: 'hsb' };
-        } else if (chan === 'b') {
-            v = val / 100;
-            state.overrides[activeStop as number] = { ...currentOverride, v: v, mode: 'hsb' };
-        }
+            if (chan === 'h') {
+                h = val;
+                state.overrides[activeStop as number] = { ...currentOverride, hue: val, mode: 'hsb' };
+            } else if (chan === 's') {
+                s = val / 100;
+                state.overrides[activeStop as number] = { ...currentOverride, s: s, mode: 'hsb' };
+            } else if (chan === 'b') {
+                v = val / 100;
+                state.overrides[activeStop as number] = { ...currentOverride, v: v, mode: 'hsb' };
+            }
 
-        (document.getElementById(`hsb-${chan}-val`) as HTMLElement).innerText = (chan === 'h') ? `${Math.round(val)}°` : `${Math.round(val)}%`;
+            const hsbVal = getEl<HTMLElement>(`hsb-${chan}-val`);
+            if (hsbVal) hsbVal.innerText = (chan === 'h') ? `${Math.round(val)}°` : `${Math.round(val)}%`;
 
-        // Update visual backgrounds
-        updateHSBSliders(h, s, v);
+            // Update visual backgrounds
+            updateHSBSliders(h, s, v);
 
-        // IMPORTANT: Update preview immediately
-        update();
-        updateModalPreview();
-    };
+            // IMPORTANT: Update preview immediately
+            update();
+            updateModalPreview();
+        };
+    }
 });
 
 // Helper to update RGB slider backgrounds dynamically
@@ -680,9 +756,9 @@ function updateRGBSliders(r: number, g: number, b: number) {
 
 // RGB Listeners (Fixed to simple iteration)
 ['r', 'g', 'b'].forEach(chan => {
-    const el = document.getElementById(`rgb-${chan}-slider`);
+    const el = getEl<HTMLInputElement>(`rgb-${chan}-slider`);
     if (el) {
-        (el as HTMLInputElement).oninput = (e) => {
+        el.oninput = (e) => {
             const target = e.target as HTMLInputElement;
             const val = parseInt(target.value);
 
@@ -693,7 +769,8 @@ function updateRGBSliders(r: number, g: number, b: number) {
             const b = (chan === 'b' ? val / 255 : (currentOverride.b !== undefined ? currentOverride.b : 0));
 
             state.overrides[activeStop as number] = { ...currentOverride, [chan]: val / 255, mode: 'rgb' };
-            (document.getElementById(`rgb-${chan}-val`) as HTMLElement).innerText = String(val);
+            const rgbVal = getEl<HTMLElement>(`rgb-${chan}-val`);
+            if (rgbVal) rgbVal.innerText = String(val);
 
             // Update visual backgrounds
             updateRGBSliders(r, g, b);
@@ -704,11 +781,12 @@ function updateRGBSliders(r: number, g: number, b: number) {
 });
 
 function closeModal() {
-    modal.classList.add('hidden');
+    if (modal) modal.classList.add('hidden');
     activeStop = null;
 }
 
-(document.getElementById('close-modal') as HTMLButtonElement).onclick = closeModal;
+const closeModalBtn = getEl<HTMLButtonElement>('close-modal');
+if (closeModalBtn) closeModalBtn.onclick = closeModal;
 
 // Connect Done button (same as close)
 const doneBtn = document.getElementById('save-modal-btn');
@@ -748,8 +826,10 @@ if (doneBtn) {
                         state.baseColor = newHex;
                         // Sync Main UI inputs
                         syncColorInputs('hex');
-                        (document.getElementById('base-color-picker') as HTMLInputElement).value = newHex;
-                        (document.getElementById('base-color-input') as HTMLInputElement).value = newHex;
+                        const basePicker = getEl<HTMLInputElement>('base-color-picker');
+                        const baseInput = getEl<HTMLInputElement>('base-color-input');
+                        if (basePicker) basePicker.value = newHex;
+                        if (baseInput) baseInput.value = newHex;
                     }
                 }
             }
@@ -774,21 +854,23 @@ if (modal) {
 
 function updateModalPreview() {
     if (activeStop === null) return;
-    const swatches = generateSwatches(state);
+    const swatches = getSwatches();
     const swatch = activeStop === 'seed' ? swatches.find(x => x.isOriginal) : swatches.find(s => s.stop === activeStop);
 
     if (!swatch) return;
 
     // Get Original for comparison
     const tempState = { ...state, overrides: {} };
-    const baseSwatches = generateSwatches(tempState);
+    const baseSwatches = state.paletteMode === 'oklch'
+        ? generateOKLCHSwatches(tempState.oklchHue, tempState.stops, tempState.oklchVividness, {})
+        : generateSwatches(tempState);
     const original = activeStop === 'seed' ? baseSwatches.find(x => x.isOriginal) : baseSwatches.find(s => s.stop === (typeof activeStop === 'string' ? swatch.stop : activeStop));
 
     if (!original) return;
 
     // Fix: Preview-before should be Original, Preview-after should be Refining
-    const beforePill = document.getElementById('preview-before') as HTMLElement;
-    const afterPill = document.getElementById('preview-after') as HTMLElement;
+    const beforePill = getEl<HTMLElement>('preview-before');
+    const afterPill = getEl<HTMLElement>('preview-after');
 
     // Dynamic Text Color Logic
     // Helper to calculate contrast against white/black to decide text color
@@ -801,21 +883,26 @@ function updateModalPreview() {
     const originalHex = original.hex;
     const newHex = swatch.hex;
 
-    beforePill.style.backgroundColor = originalHex;
-    afterPill.style.backgroundColor = newHex;
+    if (beforePill) {
+        beforePill.style.backgroundColor = originalHex;
+        beforePill.style.color = getTextColor(originalHex);
+    }
+    if (afterPill) {
+        afterPill.style.backgroundColor = newHex;
+        afterPill.style.color = getTextColor(newHex);
+    }
 
-    beforePill.style.color = getTextColor(originalHex);
-    afterPill.style.color = getTextColor(newHex);
+    const hexBeforeLabel = getEl<HTMLElement>('hex-before-label');
+    const hexAfterLabel = getEl<HTMLElement>('hex-after-label');
 
-    const hexBeforeLabel = document.getElementById('hex-before-label') as HTMLElement;
-    const hexAfterLabel = document.getElementById('hex-after-label') as HTMLElement;
-
-    hexBeforeLabel.innerText = original.hex.toUpperCase();
-    hexAfterLabel.innerText = swatch.hex.toUpperCase();
-
-    // Text color based on lightness (wcag against background would be better but simple l threshold work for now)
-    hexBeforeLabel.style.color = original.lch.l > 60 ? '#000' : '#fff';
-    hexAfterLabel.style.color = swatch.lch.l > 60 ? '#000' : '#fff';
+    if (hexBeforeLabel) {
+        hexBeforeLabel.innerText = original.hex.toUpperCase();
+        hexBeforeLabel.style.color = original.lch.l > 60 ? '#000' : '#fff';
+    }
+    if (hexAfterLabel) {
+        hexAfterLabel.innerText = swatch.hex.toUpperCase();
+        hexAfterLabel.style.color = swatch.lch.l > 60 ? '#000' : '#fff';
+    }
 
     // Contrast Badge Logic
     const contrastBadge = document.getElementById('modal-contrast-badge');
@@ -864,25 +951,29 @@ function updateModalPreview() {
 }
 
 // Event Listeners (Base Color)
-colorInput.oninput = (e) => {
-    const target = e.target as HTMLInputElement;
-    let val = target.value;
-    if (!val.startsWith('#')) val = '#' + val;
-    if (/^#[0-9A-F]{6}$/i.test(val)) {
-        state.baseColor = val;
-        colorPicker.value = val;
+if (colorInput) {
+    colorInput.oninput = (e) => {
+        const target = e.target as HTMLInputElement;
+        let val = target.value;
+        if (!val.startsWith('#')) val = '#' + val;
+        if (/^#[0-9A-F]{6}$/i.test(val)) {
+            state.baseColor = val;
+            if (colorPicker) colorPicker.value = val;
+            syncColorInputs('hex');
+            update();
+        }
+    };
+}
+
+if (colorPicker) {
+    colorPicker.oninput = (e) => {
+        const target = e.target as HTMLInputElement;
+        state.baseColor = target.value;
+        if (colorInput) colorInput.value = state.baseColor.toUpperCase();
         syncColorInputs('hex');
         update();
-    }
-};
-
-colorPicker.oninput = (e) => {
-    const target = e.target as HTMLInputElement;
-    state.baseColor = target.value;
-    colorInput.value = state.baseColor.toUpperCase();
-    syncColorInputs('hex');
-    update();
-};
+    };
+}
 
 // ==============================================================================
 // MODE TOGGLE HANDLERS
@@ -894,44 +985,57 @@ function setMode(mode: 'legacy' | 'oklch') {
     // because the user might want to compare the same settings in different algos.
 
     // Update UI tabs
-    modeLegacyBtn.classList.toggle('active', mode === 'legacy');
-    modeOklchBtn.classList.toggle('active', mode === 'oklch');
+    if (modeLegacyBtn) modeLegacyBtn.classList.toggle('active', mode === 'legacy');
+    if (modeOklchBtn) modeOklchBtn.classList.toggle('active', mode === 'oklch');
 
     // Slide the thumb
     if (modeThumb) {
         modeThumb.style.transform = mode === 'legacy' ? 'translateX(0)' : 'translateX(100%)';
     }
 
+    // V 0.0.82: Toggle visibility of Anchor Contrast based on mode
+    if (anchorThemeRow) {
+        anchorThemeRow.style.display = mode === 'legacy' ? 'flex' : 'none';
+    }
+
     // Both modes now share the same color picking options (sliders + hex)
     // as they are bi-directionally synced.
 
-    update();
+    // Immediately update UI with existing swatches (mode-dependent display)
+    if (lastSwatches.length > 0) {
+        render(lastSwatches);
+    }
 }
 
-modeLegacyBtn.onclick = () => setMode('legacy');
-modeOklchBtn.onclick = () => setMode('oklch');
+// Mode Toggle Handlers
+if (modeLegacyBtn) modeLegacyBtn.onclick = () => setMode('legacy');
+if (modeOklchBtn) modeOklchBtn.onclick = () => setMode('oklch');
 
 // OKLCH Hue Slider
-oklchHueSlider.oninput = (e) => {
-    const target = e.target as HTMLInputElement;
-    const sliderHue = parseInt(target.value, 10);
-    // Offset logic: 0 on slider maps to OKLCH 29° (Red)
-    const logicalHue = (sliderHue + HUE_OFFSET) % 360;
-    state.oklchHue = logicalHue;
-    oklchHueValue.innerText = `${logicalHue}°`;
-    syncColorInputs('sliders');
-    update();
-};
+if (oklchHueSlider) {
+    oklchHueSlider.oninput = (e) => {
+        const target = e.target as HTMLInputElement;
+        const sliderHue = parseInt(target.value, 10);
+        // Offset logic: 0 on slider maps to OKLCH 29° (Red)
+        const logicalHue = (sliderHue + HUE_OFFSET) % 360;
+        state.oklchHue = logicalHue;
+        if (oklchHueValue) oklchHueValue.innerText = `${logicalHue}°`;
+        syncColorInputs('sliders');
+        update();
+    };
+}
 
 // OKLCH Vividness Slider
-oklchVividnessSlider.oninput = (e) => {
-    const target = e.target as HTMLInputElement;
-    const vividness = parseInt(target.value, 10);
-    state.oklchVividness = vividness / 100; // Convert 0-100 to 0-1
-    oklchVividnessValue.innerText = `${vividness}%`;
-    syncColorInputs('sliders');
-    update();
-};
+if (oklchVividnessSlider) {
+    oklchVividnessSlider.oninput = (e) => {
+        const target = e.target as HTMLInputElement;
+        const vividness = parseInt(target.value, 10);
+        state.oklchVividness = vividness / 100; // Convert 0-100 to 0-1
+        if (oklchVividnessValue) oklchVividnessValue.innerText = `${vividness}%`;
+        syncColorInputs('sliders');
+        update();
+    };
+}
 
 
 exportBtn?.addEventListener('click', () => {
@@ -969,7 +1073,7 @@ exportBtn?.addEventListener('click', () => {
     const finalSwatches = swatches.map(s => {
         const rgb = hexToFigmaRgb(s.hex);
         // Calculate contrast against theme background
-        const contrast = wcagContrast(s.hex, getContrastBackground());
+        const contrast = wcagContrast(s.hex, getContrastBackground(state.theme));
 
         return {
             stop: s.stop,
@@ -1005,24 +1109,24 @@ window.onmessage = (event) => {
     if (msg.type === 'SET_BASE_COLOR') {
         state.baseColor = msg.hex;
         state.overrides = {};
-        colorInput.value = msg.hex;
-        colorPicker.value = msg.hex;
+        if (colorInput) colorInput.value = msg.hex;
+        if (colorPicker) colorPicker.value = msg.hex;
         update();
     } else if (msg.type === 'PALETTES_DATA') {
-        // V 0.0.79: Receive detected palettes from Figma
+        // V 0.0.80: Receive detected palettes from Figma
         detectedPalettes = msg.palettes || [];
         renderPaletteSidebar();
     }
 };
 
 /**
- * Renders the palette sidebar with detected palettes (V 0.0.79)
+ * Renders the palette sidebar with detected palettes (V 0.0.80)
  */
 function renderPaletteSidebar() {
     const sidebar = document.getElementById('palette-sidebar');
     if (!palettePillsContainer || !sidebar) return;
 
-    // V 0.0.79: Hide sidebar if no palettes exist (User Request)
+    // V 0.0.80: Hide sidebar if no palettes exist (User Request)
     if (detectedPalettes.length === 0) {
         sidebar.style.display = 'none';
         return;
@@ -1052,7 +1156,7 @@ function renderPaletteSidebar() {
 }
 
 /**
- * Selects a palette from the sidebar and loads it into the editor (V 0.0.79)
+ * Selects a palette from the sidebar and loads it into the editor (V 0.0.80)
  */
 function selectPalette(hueName: string) {
     const palette = detectedPalettes.find(p => p.hueName === hueName);
@@ -1086,8 +1190,8 @@ function selectPalette(hueName: string) {
 
     // 4. Update UI Inputs
     // 4. Update UI Inputs
-    colorInput.value = state.baseColor;
-    colorPicker.value = state.baseColor;
+    if (colorInput) colorInput.value = state.baseColor;
+    if (colorPicker) colorPicker.value = state.baseColor;
 
     // SYNC SLIDERS TO SELECTED PALETTE
     const baseOklch = oklch(state.baseColor);
@@ -1104,7 +1208,7 @@ function selectPalette(hueName: string) {
     renderPaletteSidebar();
 }
 
-// Request palettes on boot (V 0.0.79)
+// Request palettes on boot (V 0.0.80)
 parent.postMessage({ pluginMessage: { type: 'GET_PALETTES' } }, '*');
 
 // Add palette button handler
@@ -1125,7 +1229,7 @@ if (addPaletteBtn) {
 }
 
 /**
- * Checks if current state differs from the loaded palette (V 0.0.79)
+ * Checks if current state differs from the loaded palette (V 0.0.80)
  */
 function checkDirty() {
     if (!originalPaletteData) {
@@ -1162,7 +1266,7 @@ function checkDirty() {
 }
 
 /**
- * Updates the main action button text based on state (V 0.0.79)
+ * Updates the main action button text based on state (V 0.0.80)
  */
 function updateButtonState() {
     if (!exportBtn) return;
@@ -1208,11 +1312,11 @@ function setThemeUI(theme: 'light' | 'dark') {
 
     // Update Icons
     if (theme === 'light') {
-        themeIconDark.style.display = 'none';
-        themeIconLight.style.display = 'block';
+        if (themeIconDark) themeIconDark.style.display = 'none';
+        if (themeIconLight) themeIconLight.style.display = 'block';
     } else {
-        themeIconDark.style.display = 'block';
-        themeIconLight.style.display = 'none';
+        if (themeIconDark) themeIconDark.style.display = 'block';
+        if (themeIconLight) themeIconLight.style.display = 'none';
     }
 
     update();
@@ -1320,8 +1424,8 @@ function resetPlugin() {
     if (modal) modal.classList.add('hidden');
 
     // Reset DOM elements handled by sync
-    colorInput.value = state.baseColor;
-    colorPicker.value = state.baseColor;
+    if (colorInput) colorInput.value = state.baseColor;
+    if (colorPicker) colorPicker.value = state.baseColor;
 
     // Standardize UI
     syncColorInputs('hex');
@@ -1342,7 +1446,30 @@ if (tokensToggle) {
     };
 }
 
+// Anchor Theme Toggle
+if (anchorThemeToggle) {
+    function setAnchorThemeUI(theme: 'light' | 'dark') {
+        state.anchorTheme = theme;
+        if (anchorIconDark) anchorIconDark.style.display = theme === 'dark' ? 'block' : 'none';
+        if (anchorIconLight) anchorIconLight.style.display = theme === 'light' ? 'block' : 'none';
+        if (anchorThemeToggle) anchorThemeToggle.classList.toggle('active', theme === 'dark');
+        update();
+    }
+
+    anchorThemeToggle.onclick = () => {
+        setAnchorThemeUI(state.anchorTheme === 'dark' ? 'light' : 'dark');
+    };
+
+    // Initial Sync
+    setAnchorThemeUI(state.anchorTheme);
+}
+
 // Initial mode and UI sync
+if (typeof APP_VERSION !== 'undefined') {
+    const versionEl = document.querySelector('.version-text');
+    if (versionEl) versionEl.textContent = `V ${APP_VERSION}`;
+}
+
 syncColorInputs('hex'); // Alignment hex -> sliders
 setMode(state.paletteMode); // This calls update() internally
 tokensToggle?.classList.remove('active'); // Explicitly force off on boot
@@ -1354,7 +1481,7 @@ function updateSize() {
     // Clear any pending resize to avoid spamming
     if (resizeTimeout) clearTimeout(resizeTimeout);
 
-    resizeTimeout = setTimeout(() => {
+    resizeTimeout = window.setTimeout(() => {
         const height = Math.ceil(document.documentElement.offsetHeight);
         const width = Math.ceil(window.innerWidth);
         parent.postMessage({ pluginMessage: { type: 'RESIZE_UI', width, height } }, '*');
@@ -1366,7 +1493,9 @@ const resizeObserver = new ResizeObserver(() => {
     updateSize();
 });
 
-resizeObserver.observe(document.body);
+if (document.body) {
+    resizeObserver.observe(document.body);
+}
 
 // Also update on explicit interactions
-setTimeout(updateSize, 200);
+window.setTimeout(updateSize, 200);

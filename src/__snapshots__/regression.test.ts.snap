@@ -1,0 +1,253 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Color Generation Regression (Snapshots) > Linear Swatches (Legacy) should remain identical > legacy-color-#000000-anchor-dark 1`] = `
+[
+  "#d1d1d1",
+  "#b5b5b5",
+  "#9d9d9d",
+  "#878787",
+  "#747474",
+  "#646464",
+  "#555555",
+  "#484848",
+  "#3d3d3d",
+]
+`;
+
+exports[`Color Generation Regression (Snapshots) > Linear Swatches (Legacy) should remain identical > legacy-color-#000000-anchor-light 1`] = `
+[
+  "#d4d4d4",
+  "#b8b8b8",
+  "#9f9f9f",
+  "#8a8a8a",
+  "#777777",
+  "#666666",
+  "#575757",
+  "#4a4a4a",
+  "#3e3e3e",
+]
+`;
+
+exports[`Color Generation Regression (Snapshots) > Linear Swatches (Legacy) should remain identical > legacy-color-#0000ff-anchor-dark 1`] = `
+[
+  "#def4ff",
+  "#bfd4ff",
+  "#95b7fe",
+  "#6e9cfe",
+  "#4b81fd",
+  "#2b65fd",
+  "#0945fe",
+  "#0133e5",
+  "#0029c7",
+]
+`;
+
+exports[`Color Generation Regression (Snapshots) > Linear Swatches (Legacy) should remain identical > legacy-color-#0000ff-anchor-light 1`] = `
+[
+  "#e4faff",
+  "#c4d9ff",
+  "#9cbcfc",
+  "#75a0fc",
+  "#5085fd",
+  "#2f69fd",
+  "#0e4afe",
+  "#0134eb",
+  "#002acc",
+]
+`;
+
+exports[`Color Generation Regression (Snapshots) > Linear Swatches (Legacy) should remain identical > legacy-color-#00ff00-anchor-dark 1`] = `
+[
+  "#0cdf0a",
+  "#01c201",
+  "#03a802",
+  "#0b9109",
+  "#097c07",
+  "#016b01",
+  "#065b05",
+  "#054d04",
+  "#014101",
+]
+`;
+
+exports[`Color Generation Regression (Snapshots) > Linear Swatches (Legacy) should remain identical > legacy-color-#00ff00-anchor-light 1`] = `
+[
+  "#0be509",
+  "#13c610",
+  "#10ab0e",
+  "#079405",
+  "#048004",
+  "#076d05",
+  "#035d02",
+  "#024f02",
+  "#034302",
+]
+`;
+
+exports[`Color Generation Regression (Snapshots) > Linear Swatches (Legacy) should remain identical > legacy-color-#9600FF-anchor-dark 1`] = `
+[
+  "#efe4ff",
+  "#d5befe",
+  "#c099fd",
+  "#af74fe",
+  "#a04bfe",
+  "#9303fa",
+  "#7f02d8",
+  "#6c06b9",
+  "#5c059f",
+]
+`;
+
+exports[`Color Generation Regression (Snapshots) > Linear Swatches (Legacy) should remain identical > legacy-color-#9600FF-anchor-light 1`] = `
+[
+  "#f4e9ff",
+  "#d9c5fd",
+  "#c4a0fd",
+  "#b27afe",
+  "#a253fd",
+  "#9611fe",
+  "#8202de",
+  "#6f06be",
+  "#5f04a4",
+]
+`;
+
+exports[`Color Generation Regression (Snapshots) > Linear Swatches (Legacy) should remain identical > legacy-color-#ff0000-anchor-dark 1`] = `
+[
+  "#fec9c0",
+  "#fe9d8f",
+  "#fd6f5d",
+  "#fe2a1e",
+  "#e10905",
+  "#c20905",
+  "#a80302",
+  "#900201",
+  "#7b0503",
+]
+`;
+
+exports[`Color Generation Regression (Snapshots) > Linear Swatches (Legacy) should remain identical > legacy-color-#ff0000-anchor-light 1`] = `
+[
+  "#fed0c9",
+  "#fda597",
+  "#fe7766",
+  "#fe3a2c",
+  "#e70704",
+  "#c80603",
+  "#ab0b06",
+  "#930804",
+  "#7f0201",
+]
+`;
+
+exports[`Color Generation Regression (Snapshots) > Linear Swatches (Legacy) should remain identical > legacy-color-#ffffff-anchor-dark 1`] = `
+[
+  "#d1d1d1",
+  "#b5b5b5",
+  "#9d9d9d",
+  "#878787",
+  "#747474",
+  "#646464",
+  "#555555",
+  "#484848",
+  "#3d3d3d",
+]
+`;
+
+exports[`Color Generation Regression (Snapshots) > Linear Swatches (Legacy) should remain identical > legacy-color-#ffffff-anchor-light 1`] = `
+[
+  "#d4d4d4",
+  "#b8b8b8",
+  "#9f9f9f",
+  "#8a8a8a",
+  "#777777",
+  "#666666",
+  "#575757",
+  "#4a4a4a",
+  "#3e3e3e",
+]
+`;
+
+exports[`Color Generation Regression (Snapshots) > OKLCH Swatches should remain identical > oklch-hue-0 1`] = `
+[
+  "#ffcfdc",
+  "#ffa2bf",
+  "#ff6ba1",
+  "#f90285",
+  "#9c0151",
+  "#850144",
+  "#59002b",
+  "#300015",
+  "#0c0003",
+]
+`;
+
+exports[`Color Generation Regression (Snapshots) > OKLCH Swatches should remain identical > oklch-hue-60 1`] = `
+[
+  "#ffd5b4",
+  "#ffad66",
+  "#f18803",
+  "#cb7101",
+  "#7f4400",
+  "#6b3900",
+  "#472400",
+  "#251000",
+  "#080200",
+]
+`;
+
+exports[`Color Generation Regression (Snapshots) > OKLCH Swatches should remain identical > oklch-hue-120 1`] = `
+[
+  "#cdf103",
+  "#b3d205",
+  "#99b501",
+  "#809802",
+  "#4e5d01",
+  "#414e01",
+  "#293300",
+  "#131900",
+  "#030400",
+]
+`;
+
+exports[`Color Generation Regression (Snapshots) > OKLCH Swatches should remain identical > oklch-hue-180 1`] = `
+[
+  "#36ffe2",
+  "#06e0c5",
+  "#03c0a9",
+  "#00a28e",
+  "#016457",
+  "#025449",
+  "#01362f",
+  "#001b17",
+  "#000503",
+]
+`;
+
+exports[`Color Generation Regression (Snapshots) > OKLCH Swatches should remain identical > oklch-hue-240 1`] = `
+[
+  "#bfe4ff",
+  "#80cbff",
+  "#1eb1ff",
+  "#0495da",
+  "#025b88",
+  "#004d73",
+  "#01314c",
+  "#001828",
+  "#000409",
+]
+`;
+
+exports[`Color Generation Regression (Snapshots) > OKLCH Swatches should remain identical > oklch-hue-300 1`] = `
+[
+  "#e3d6ff",
+  "#ccb2ff",
+  "#b78aff",
+  "#a45dff",
+  "#6e01c2",
+  "#5d00a6",
+  "#3d016f",
+  "#1f003d",
+  "#060012",
+]
+`;

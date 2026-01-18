@@ -1,13 +1,14 @@
 {
   "name": "perceptual-palette",
   "private": true,
-  "version": "0.0.79",
+  "version": "0.0.82",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && vite build --config vite.code.config.ts",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "patch": "npm version patch --no-git-tag-version && npm run build"
   },
   "devDependencies": {
     "@types/culori": "^4.0.1",

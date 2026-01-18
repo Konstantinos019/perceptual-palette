@@ -41,6 +41,8 @@ export interface PaletteConfig {
     oklchHue?: number;
     /** OKLCH vividness/chroma intensity (0-1) - used when paletteMode is 'oklch' */
     oklchVividness?: number;
+    /** The target theme background for the anchor calculation (Legacy mode) */
+    anchorTheme?: 'light' | 'dark';
 }
 
 /**
@@ -99,7 +101,7 @@ export interface FigmaExportPayload {
         isOriginal?: boolean;
     }[];
 
-    // V 0.0.79: Database Action
+    // V 0.0.80: Database Action
     action?: 'create' | 'update';
     paletteId?: string; // hueName
 }
