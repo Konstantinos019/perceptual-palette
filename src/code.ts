@@ -91,7 +91,7 @@ figma.ui.onmessage = async (msg) => {
                 const collections = await figma.variables.getLocalVariableCollectionsAsync();
                 console.log("Debug: Found collections:", collections.map(c => c.name));
 
-                collection = collections.find(c => c.name === collectionName) || figma.variables.createVariableCollection(collectionName);
+                collection = collections.find(c => c.name.toLowerCase() === collectionName) || figma.variables.createVariableCollection(collectionName);
                 console.log("Debug: Target collection:", collection.id, collection.name);
 
                 // Name collision check
@@ -332,9 +332,14 @@ async function getPalettesData() {
     try {
         const allVariables = await figma.variables.getLocalVariablesAsync('COLOR');
         const allCollections = await figma.variables.getLocalVariableCollectionsAsync();
-        const targetCollection = allCollections.find(c => c.name === "[primitive] colors");
+        const targetCollection = allCollections.find(c => c.name.toLowerCase() === "[primitive] colors");
 
-        if (!targetCollection) return []; // No target collection found, return empty
+        if (!targetCollection) {
+            console.warn("Analysis: '[primitive] colors' collection not found.");
+            // Optional: Notify for debugging if needed, but console is safer to avoid spam if it's just empty state
+            // figma.notify("Debug: '[primitive] colors' collection not found", { error: true });
+            return [];
+        }
 
         const paletteMap: Record<string, { hueName: string, stops: { stop: number, hex: string, variableId: string }[] }> = {};
 
@@ -405,7 +410,7 @@ async function updatePaletteVariables(payload: FigmaExportPayload) {
         // 1. Get/Create Target Collection
         const collectionName = "[primitive] colors";
         const collections = await figma.variables.getLocalVariableCollectionsAsync();
-        let collection = collections.find(c => c.name === collectionName);
+        let collection = collections.find(c => c.name.toLowerCase() === collectionName);
 
         if (!collection) {
             collection = figma.variables.createVariableCollection(collectionName);
