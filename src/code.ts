@@ -197,7 +197,7 @@ figma.ui.onmessage = async (msg) => {
             if (createVariables && collection) {
                 try {
                     const varName = `${varPaletteName}/${swatch.stop}`;
-                    const variable = figma.variables.createVariable(varName, collection.id, 'COLOR');
+                    const variable = figma.variables.createVariable(varName, collection, 'COLOR');
                     variable.setValueForMode(collection.modes[0].modeId, figmaColor);
 
                     // Bind to visual if it exists (Optional nice-to-have)
@@ -421,7 +421,7 @@ async function updatePaletteVariables(payload: FigmaExportPayload) {
             if (existingVar) {
                 existingVar.setValueForMode(modeId, figmaColor);
             } else {
-                const newVar = figma.variables.createVariable(varName, collectionId as string, 'COLOR');
+                const newVar = figma.variables.createVariable(varName, collection, 'COLOR');
                 newVar.setValueForMode(modeId, figmaColor);
             }
         }
