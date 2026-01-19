@@ -1521,19 +1521,22 @@ function setThemeUI(theme: 'light' | 'dark') {
 
     update();
 
-    // CRITICAL: Re-fetch icons after createIcons() has replaced the DOM elements
-    // Lucide replaces <i> tags with SVG, making initial references stale
-    const currentThemeIconLight = getEl<HTMLElement>('theme-icon-light');
-    const currentThemeIconDark = getEl<HTMLElement>('theme-icon-dark');
+    // CRITICAL: Use requestAnimationFrame to ensure createIcons() has finished
+    // Lucide's createIcons() replaces <i> tags with SVG asynchronously
+    // We need to wait for the next frame to ensure DOM manipulation is complete
+    requestAnimationFrame(() => {
+        const currentThemeIconLight = getEl<HTMLElement>('theme-icon-light');
+        const currentThemeIconDark = getEl<HTMLElement>('theme-icon-dark');
 
-    // Update Icons: Sun in Light, Moon in Dark
-    if (theme === 'light') {
-        if (currentThemeIconLight) currentThemeIconLight.style.display = 'block';  // Sun
-        if (currentThemeIconDark) currentThemeIconDark.style.display = 'none';    // Moon hidden
-    } else {
-        if (currentThemeIconLight) currentThemeIconLight.style.display = 'none';  // Sun hidden
-        if (currentThemeIconDark) currentThemeIconDark.style.display = 'block';   // Moon
-    }
+        // Update Icons: Sun in Light, Moon in Dark
+        if (theme === 'light') {
+            if (currentThemeIconLight) currentThemeIconLight.style.display = 'block';  // Sun
+            if (currentThemeIconDark) currentThemeIconDark.style.display = 'none';    // Moon hidden
+        } else {
+            if (currentThemeIconLight) currentThemeIconLight.style.display = 'none';  // Sun hidden
+            if (currentThemeIconDark) currentThemeIconDark.style.display = 'block';   // Moon
+        }
+    });
 }
 
 function toggleTheme() {
