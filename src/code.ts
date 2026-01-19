@@ -332,30 +332,41 @@ async function getPalettesData() {
     try {
         const allVariables = await figma.variables.getLocalVariablesAsync('COLOR');
         const allCollections = await figma.variables.getLocalVariableCollectionsAsync();
-        const targetCollection = allCollections.find(c => c.name.toLowerCase() === "[primitive] colors");
 
-        if (!targetCollection) {
-            console.warn("Analysis: '[primitive] colors' collection not found.");
-            // Optional: Notify for debugging if needed, but console is safer to avoid spam if it's just empty state
-            // figma.notify("Debug: '[primitive] colors' collection not found", { error: true });
+        // DIAGNOSTIC LOGGING
+        const collectionNames = allCollections.map(c => c.name);
+        console.log("Deep Dive: Accessing Local Variables...");
+        console.log("Deep Dive: Found Collections:", collectionNames);
+        console.log("Deep Dive: Total Color Variables:", allVariables.length);
+
+        if (allCollections.length === 0) {
+            console.warn("Deep Dive: No variable collections found in document.");
             return [];
         }
+
+        // Notify user of what we see (Temporary Diagnostic)
+        figma.notify(`Diagnostics: Found ${allCollections.length} collections: ${collectionNames.slice(0, 3).join(', ')}${collectionNames.length > 3 ? '...' : ''}`);
 
         const paletteMap: Record<string, { hueName: string, stops: { stop: number, hex: string, variableId: string }[] }> = {};
 
         for (const variable of allVariables) {
-            // STRICT FILTER: Only read from [primitive] colors
-            if (variable.variableCollectionId !== targetCollection.id) continue;
+            // RELAXED FILTER: Look at ALL collections
+            // We blindly try to parse "Name/Stop" from any color variable
 
             const parts = variable.name.split('/');
             if (parts.length >= 2) {
-                const hueName = parts[0];
+                // Hue Name is everything before the stop? Or just the immediate parent?
+                // Standard Figma tokens: "Collection/Group/Name" -> "Primitives/Slate/500"
+                // Let's assume the IMMEDIATE parent folder is the "Hue Name" (Palette Name)
+
                 const stopStr = parts[parts.length - 1];
                 const stop = parseInt(stopStr, 10);
 
                 if (!isNaN(stop)) {
-                    if (!paletteMap[hueName]) {
-                        paletteMap[hueName] = { hueName, stops: [] };
+                    const groupName = parts[parts.length - 2];
+
+                    if (!paletteMap[groupName]) {
+                        paletteMap[groupName] = { hueName: groupName, stops: [] };
                     }
 
                     const collection = figma.variables.getVariableCollectionById(variable.variableCollectionId);
@@ -366,14 +377,19 @@ async function getPalettesData() {
                         const rgb = resolveColor(value);
                         if (rgb) {
                             const hex = figmaRgbToHex(rgb);
-                            paletteMap[hueName].stops.push({ stop, hex, variableId: variable.id });
+                            // Avoid duplicates if multiple modes resolve differently? 
+                            // We just take the first mode for this visualization.
+                            paletteMap[groupName].stops.push({ stop, hex, variableId: variable.id });
                         }
                     }
                 }
             }
         }
 
-        return Object.values(paletteMap).map(p => {
+        const foundPalettes = Object.values(paletteMap);
+        console.log("Deep Dive: Resolved Palettes:", foundPalettes.length, foundPalettes.map(p => p.hueName));
+
+        return foundPalettes.map(p => {
             p.stops.sort((a, b) => a.stop - b.stop);
             // Find 500 or nearest center for preview
             let previewStop = p.stops.find(s => s.stop === 500);
@@ -384,6 +400,7 @@ async function getPalettesData() {
         });
     } catch (error: any) {
         console.error("Error in getPalettesData:", error);
+        figma.notify(`Deep Dive Error: ${error.message}`);
         return [];
     }
 }
