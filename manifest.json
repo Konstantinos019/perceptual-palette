@@ -6,6 +6,7 @@
   "ui": "dist/index.html",
   "capabilities": [],
   "enableProposedApi": false,
+  "documentAccess": "dynamic-page",
   "networkAccess": {
     "allowedDomains": [
       "none"
