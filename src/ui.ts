@@ -1497,14 +1497,11 @@ function updateButtonState() {
     const btnText = document.getElementById('btn-text-vars');
     if (!btnText) return;
 
-    if (originalPaletteData && isDirty) {
-        // Editing existing palette with changes
+    if (originalPaletteData) {
+        // Variables exist (either saved or dirty)
         btnText.innerHTML = `Update variables`;
-    } else if (originalPaletteData && !isDirty) {
-        // Saved state
-        btnText.innerHTML = `Saved`;
     } else {
-        // Creating new palette
+        // Creating new palette variables
         btnText.innerHTML = `Generate variables`;
     }
 }
