@@ -86,7 +86,8 @@ figma.ui.onmessage = async (msg) => {
 
         if (createVariables) {
             try {
-                const collectionName = "[primitive] colors"; // Restored from backup
+                // Modified: Case insensitive match for creating/finding collection
+                const collectionName = "[primitive] colors";
                 console.log("Debug: Fetching collections...");
                 const collections = await figma.variables.getLocalVariableCollectionsAsync();
                 console.log("Debug: Found collections:", collections.map(c => c.name));
@@ -197,27 +198,9 @@ figma.ui.onmessage = async (msg) => {
             if (createVariables && collection) {
                 try {
                     const varName = `${varPaletteName}/${swatch.stop}`;
+                    // Fixed: Pass collection object, not ID
                     const variable = figma.variables.createVariable(varName, collection, 'COLOR');
                     variable.setValueForMode(collection.modes[0].modeId, figmaColor);
-
-                    // Bind to visual if it exists (Optional nice-to-have)
-                    // If we created a card above, we can bind it. But wait, we need reference to `colorBlockShape`.
-                    // It's strictly scoped inside `if (container)`.
-                    // To do this cleanly, we'd need to expose `colorBlockShape` or re-find it?
-                    // Or just duplicate the binding logic inside `if (container)`?
-                    // Actually, the previous code created the variable THEN bound it. 
-                    // Let's check `src/code.ts` original logic... 
-                    // It created variable, then: 
-                    // `colorBlockShape.fills = [figma.variables.setBoundVariableForPaint(colorBlockShape.fills[0] as SolidPaint, 'color', variable)];`
-
-                    // Since I separated them, I can't easily bind the visual unless I reference it.
-                    // For simplicity, let's skip binding if we are separating actions. 
-                    // If user does BOTH (which my UI won't support anymore), they would be unbound.
-                    // BUT, if I want to support binding when `createFrame` is TRUE, I should structure differently.
-                    // However, user asked for INDEPENDENT actions.
-                    // So if I click "Create Template", it's just a frame.
-                    // If I click "Save Variables", it's just variables.
-                    // So binding is not required/possible across these actions.
 
                 } catch (e: any) {
                     console.error(`Failed to create variable ${swatch.stop}:`, e);
@@ -326,7 +309,7 @@ figma.ui.onmessage = async (msg) => {
 
 /**
  * Helper to get all palettes formatted for UI
- * V 0.0.80 Refactor (Preserved)
+ * V 0.0.86 Deep Dive + Flexible Parsing
  */
 async function getPalettesData() {
     try {
@@ -335,35 +318,53 @@ async function getPalettesData() {
 
         // DIAGNOSTIC LOGGING
         const collectionNames = allCollections.map(c => c.name);
+        const sampleVarNames = allVariables.slice(0, 3).map(v => v.name);
+
         console.log("Deep Dive: Accessing Local Variables...");
         console.log("Deep Dive: Found Collections:", collectionNames);
         console.log("Deep Dive: Total Color Variables:", allVariables.length);
+        console.log("Deep Dive: Sample Variable Names:", sampleVarNames);
 
         if (allCollections.length === 0) {
             console.warn("Deep Dive: No variable collections found in document.");
             return [];
         }
 
-        // Notify user of what we see (Temporary Diagnostic)
-        figma.notify(`Diagnostics: Found ${allCollections.length} collections: ${collectionNames.slice(0, 3).join(', ')}${collectionNames.length > 3 ? '...' : ''}`);
+        // Notify user of what we see (Enhanced Diagnostic)
+        figma.notify(`Diagnostics: found ${allCollections.length} collections. Vars: ${allVariables.length}. Examples: ${sampleVarNames.join(', ')}`);
 
         const paletteMap: Record<string, { hueName: string, stops: { stop: number, hex: string, variableId: string }[] }> = {};
 
         for (const variable of allVariables) {
             // RELAXED FILTER: Look at ALL collections
-            // We blindly try to parse "Name/Stop" from any color variable
+            // FLEXIBLE PARSING: Try '/', '-', ' '
+            let parts = variable.name.split('/');
+            let separator = '/';
 
-            const parts = variable.name.split('/');
+            // Try other separators if split failed
+            if (parts.length < 2) {
+                parts = variable.name.split('-');
+                separator = '-';
+            }
+            if (parts.length < 2) {
+                parts = variable.name.split(' ');
+                separator = ' ';
+            }
+
             if (parts.length >= 2) {
-                // Hue Name is everything before the stop? Or just the immediate parent?
-                // Standard Figma tokens: "Collection/Group/Name" -> "Primitives/Slate/500"
-                // Let's assume the IMMEDIATE parent folder is the "Hue Name" (Palette Name)
-
                 const stopStr = parts[parts.length - 1];
                 const stop = parseInt(stopStr, 10);
 
                 if (!isNaN(stop)) {
-                    const groupName = parts[parts.length - 2];
+                    let groupName = "";
+
+                    if (separator === '/' && parts.length > 2) {
+                        // Standard structure: Collection/Group/Name -> Use "Group"
+                        groupName = parts[parts.length - 2];
+                    } else {
+                        // Flat (Slate-500) or Short (Slate/500) -> Use first part
+                        groupName = parts.slice(0, parts.length - 1).join(separator);
+                    }
 
                     if (!paletteMap[groupName]) {
                         paletteMap[groupName] = { hueName: groupName, stops: [] };
