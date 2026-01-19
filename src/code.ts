@@ -362,8 +362,9 @@ async function getPalettesData() {
                     if (collection && collection.modes.length > 0) {
                         const modeId = collection.modes[0].modeId;
                         const value = variable.valuesByMode[modeId];
-                        if (value && typeof value === 'object' && 'r' in value) {
-                            const rgb = value as RGB;
+
+                        const rgb = resolveColor(value);
+                        if (rgb) {
                             const hex = figmaRgbToHex(rgb);
                             paletteMap[hueName].stops.push({ stop, hex, variableId: variable.id });
                         }
@@ -385,6 +386,36 @@ async function getPalettesData() {
         console.error("Error in getPalettesData:", error);
         return [];
     }
+}
+
+/**
+ * Recursively resolves a variable value to an RGB color.
+ * Handles explicit RGB values and VariableAlias (references).
+ */
+function resolveColor(value: VariableValue, depth = 0): RGB | null {
+    if (depth > 10) return null; // Prevent infinite recursion
+
+    if (typeof value === 'object') {
+        if ('r' in value && 'g' in value && 'b' in value) {
+            return value as RGB;
+        }
+
+        if ('type' in value && value.type === 'VARIABLE_ALIAS') {
+            const alias = value as VariableAlias;
+            const resolvedVar = figma.variables.getVariableById(alias.id);
+            if (resolvedVar) {
+                // For simplicity in this context, we try to grab the value from the first mode 
+                // of the resolved variable's collection, as we don't have a specific mode context passed down for the target.
+                // In a more complex multi-mode setup, we might need more logic here.
+                const collection = figma.variables.getVariableCollectionById(resolvedVar.variableCollectionId);
+                if (collection && collection.modes.length > 0) {
+                    const modeId = collection.modes[0].modeId;
+                    return resolveColor(resolvedVar.valuesByMode[modeId], depth + 1);
+                }
+            }
+        }
+    }
+    return null;
 }
 
 /**
