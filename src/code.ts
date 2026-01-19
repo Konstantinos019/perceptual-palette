@@ -323,23 +323,11 @@ async function getPalettesData() {
             collectionMap.set(c.id, c);
         }
 
-        // DIAGNOSTIC LOGGING (Keeping for now to confirm fix)
-        const collectionNames = allCollections.map(c => c.name);
-        const sampleVarNames = allVariables.slice(0, 3).map(v => v.name);
-
-        console.log("Deep Dive: Accessing Local Variables...");
-        console.log("Deep Dive: Found Collections:", collectionNames);
-        console.log("Deep Dive: Total Color Variables:", allVariables.length);
-        console.log("Deep Dive: Sample Variable Names:", sampleVarNames);
-
         if (allCollections.length === 0) {
-            console.warn("Deep Dive: No variable collections found in document.");
+            // Silently return empty or log valid warning w/o user toast if preferred
+            // console.warn("No variable collections found.");
             return [];
         }
-
-        // Notify user of what we see (Enhanced Diagnostic)
-        // Keep this toast for one more verification step, then remove.
-        figma.notify(`Diagnostics: found ${allCollections.length} collections. Vars: ${allVariables.length}. Examples: ${sampleVarNames.join(', ')}`);
 
         const paletteMap: Record<string, { hueName: string, stops: { stop: number, hex: string, variableId: string }[] }> = {};
 
