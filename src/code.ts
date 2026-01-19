@@ -395,7 +395,7 @@ async function getPalettesData() {
 function resolveColor(value: VariableValue, depth = 0): RGB | null {
     if (depth > 10) return null; // Prevent infinite recursion
 
-    if (typeof value === 'object') {
+    if (value && typeof value === 'object') {
         if ('r' in value && 'g' in value && 'b' in value) {
             return value as RGB;
         }
