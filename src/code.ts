@@ -329,60 +329,69 @@ figma.ui.onmessage = async (msg) => {
  * V 0.0.80 Refactor (Preserved)
  */
 async function getPalettesData() {
-    const allVariables = await figma.variables.getLocalVariablesAsync('COLOR');
-    const allCollections = await figma.variables.getLocalVariableCollectionsAsync();
-    const targetCollection = allCollections.find(c => c.name === "[primitive] colors");
+    try {
+        const allVariables = await figma.variables.getLocalVariablesAsync('COLOR');
+        const allCollections = await figma.variables.getLocalVariableCollectionsAsync();
+        const targetCollection = allCollections.find(c => c.name === "[primitive] colors");
 
-    if (!targetCollection) return []; // No target collection found, return empty
+        if (!targetCollection) return []; // No target collection found, return empty
 
-    const paletteMap: Record<string, { hueName: string, stops: { stop: number, hex: string, variableId: string }[] }> = {};
+        const paletteMap: Record<string, { hueName: string, stops: { stop: number, hex: string, variableId: string }[] }> = {};
 
-    for (const variable of allVariables) {
-        // STRICT FILTER: Only read from [primitive] colors
-        if (variable.variableCollectionId !== targetCollection.id) continue;
+        for (const variable of allVariables) {
+            // STRICT FILTER: Only read from [primitive] colors
+            if (variable.variableCollectionId !== targetCollection.id) continue;
 
-        const parts = variable.name.split('/');
-        if (parts.length >= 2) {
-            const hueName = parts[0];
-            const stopStr = parts[parts.length - 1];
-            const stop = parseInt(stopStr, 10);
+            const parts = variable.name.split('/');
+            if (parts.length >= 2) {
+                const hueName = parts[0];
+                const stopStr = parts[parts.length - 1];
+                const stop = parseInt(stopStr, 10);
 
-            if (!isNaN(stop)) {
-                if (!paletteMap[hueName]) {
-                    paletteMap[hueName] = { hueName, stops: [] };
-                }
+                if (!isNaN(stop)) {
+                    if (!paletteMap[hueName]) {
+                        paletteMap[hueName] = { hueName, stops: [] };
+                    }
 
-                const collection = figma.variables.getVariableCollectionById(variable.variableCollectionId);
-                if (collection && collection.modes.length > 0) {
-                    const modeId = collection.modes[0].modeId;
-                    const value = variable.valuesByMode[modeId];
-                    if (value && typeof value === 'object' && 'r' in value) {
-                        const rgb = value as RGB;
-                        const hex = figmaRgbToHex(rgb);
-                        paletteMap[hueName].stops.push({ stop, hex, variableId: variable.id });
+                    const collection = figma.variables.getVariableCollectionById(variable.variableCollectionId);
+                    if (collection && collection.modes.length > 0) {
+                        const modeId = collection.modes[0].modeId;
+                        const value = variable.valuesByMode[modeId];
+                        if (value && typeof value === 'object' && 'r' in value) {
+                            const rgb = value as RGB;
+                            const hex = figmaRgbToHex(rgb);
+                            paletteMap[hueName].stops.push({ stop, hex, variableId: variable.id });
+                        }
                     }
                 }
             }
         }
-    }
 
-    return Object.values(paletteMap).map(p => {
-        p.stops.sort((a, b) => a.stop - b.stop);
-        // Find 500 or nearest center for preview
-        let previewStop = p.stops.find(s => s.stop === 500);
-        if (!previewStop && p.stops.length > 0) {
-            previewStop = p.stops[Math.floor(p.stops.length / 2)];
-        }
-        return { hueName: p.hueName, previewHex: previewStop?.hex || '#888888', stops: p.stops };
-    });
+        return Object.values(paletteMap).map(p => {
+            p.stops.sort((a, b) => a.stop - b.stop);
+            // Find 500 or nearest center for preview
+            let previewStop = p.stops.find(s => s.stop === 500);
+            if (!previewStop && p.stops.length > 0) {
+                previewStop = p.stops[Math.floor(p.stops.length / 2)];
+            }
+            return { hueName: p.hueName, previewHex: previewStop?.hex || '#888888', stops: p.stops };
+        });
+    } catch (error: any) {
+        console.error("Error in getPalettesData:", error);
+        return [];
+    }
 }
 
 /**
  * Sends the current list of palettes to the UI
  */
 async function sendPalettesToUI() {
-    const palettes = await getPalettesData();
-    figma.ui.postMessage({ type: 'PALETTES_DATA', palettes });
+    try {
+        const palettes = await getPalettesData();
+        figma.ui.postMessage({ type: 'PALETTES_DATA', palettes });
+    } catch (error) {
+        console.error("Error sending palettes to UI:", error);
+    }
 }
 
 /**
