@@ -309,14 +309,21 @@ figma.ui.onmessage = async (msg) => {
 
 /**
  * Helper to get all palettes formatted for UI
- * V 0.0.86 Deep Dive + Flexible Parsing
+ * V 0.0.87 Deep Dive Fix (In-Memory Lookup)
  */
 async function getPalettesData() {
     try {
         const allVariables = await figma.variables.getLocalVariablesAsync('COLOR');
+        // Fetch collections efficiently ONCE
         const allCollections = await figma.variables.getLocalVariableCollectionsAsync();
 
-        // DIAGNOSTIC LOGGING
+        // Create a map for fast lookup to avoid repeated API calls and sync/async issues
+        const collectionMap = new Map<string, VariableCollection>();
+        for (const c of allCollections) {
+            collectionMap.set(c.id, c);
+        }
+
+        // DIAGNOSTIC LOGGING (Keeping for now to confirm fix)
         const collectionNames = allCollections.map(c => c.name);
         const sampleVarNames = allVariables.slice(0, 3).map(v => v.name);
 
@@ -331,6 +338,7 @@ async function getPalettesData() {
         }
 
         // Notify user of what we see (Enhanced Diagnostic)
+        // Keep this toast for one more verification step, then remove.
         figma.notify(`Diagnostics: found ${allCollections.length} collections. Vars: ${allVariables.length}. Examples: ${sampleVarNames.join(', ')}`);
 
         const paletteMap: Record<string, { hueName: string, stops: { stop: number, hex: string, variableId: string }[] }> = {};
@@ -362,7 +370,7 @@ async function getPalettesData() {
                         // Standard structure: Collection/Group/Name -> Use "Group"
                         groupName = parts[parts.length - 2];
                     } else {
-                        // Flat (Slate-500) or Short (Slate/500) -> Use first part
+                        // Flat (Slate-500) -> Use first part
                         groupName = parts.slice(0, parts.length - 1).join(separator);
                     }
 
@@ -370,16 +378,16 @@ async function getPalettesData() {
                         paletteMap[groupName] = { hueName: groupName, stops: [] };
                     }
 
-                    const collection = figma.variables.getVariableCollectionById(variable.variableCollectionId);
+                    // FIX: Use Map lookup instead of deprecated synchronous API
+                    const collection = collectionMap.get(variable.variableCollectionId);
                     if (collection && collection.modes.length > 0) {
                         const modeId = collection.modes[0].modeId;
                         const value = variable.valuesByMode[modeId];
 
-                        const rgb = resolveColor(value);
+                        // Pass map to recursive resolver
+                        const rgb = resolveColor(value, collectionMap);
                         if (rgb) {
                             const hex = figmaRgbToHex(rgb);
-                            // Avoid duplicates if multiple modes resolve differently? 
-                            // We just take the first mode for this visualization.
                             paletteMap[groupName].stops.push({ stop, hex, variableId: variable.id });
                         }
                     }
@@ -410,7 +418,7 @@ async function getPalettesData() {
  * Recursively resolves a variable value to an RGB color.
  * Handles explicit RGB values and VariableAlias (references).
  */
-function resolveColor(value: VariableValue, depth = 0): RGB | null {
+function resolveColor(value: VariableValue, collectionMap: Map<string, VariableCollection>, depth = 0): RGB | null {
     if (depth > 10) return null; // Prevent infinite recursion
 
     if (value && typeof value === 'object') {
@@ -420,16 +428,22 @@ function resolveColor(value: VariableValue, depth = 0): RGB | null {
 
         if ('type' in value && value.type === 'VARIABLE_ALIAS') {
             const alias = value as VariableAlias;
-            const resolvedVar = figma.variables.getVariableById(alias.id);
-            if (resolvedVar) {
-                // For simplicity in this context, we try to grab the value from the first mode 
-                // of the resolved variable's collection, as we don't have a specific mode context passed down for the target.
-                // In a more complex multi-mode setup, we might need more logic here.
-                const collection = figma.variables.getVariableCollectionById(resolvedVar.variableCollectionId);
-                if (collection && collection.modes.length > 0) {
-                    const modeId = collection.modes[0].modeId;
-                    return resolveColor(resolvedVar.valuesByMode[modeId], depth + 1);
+
+            // NOTE: figma.variables.getVariableById is synchronous. 
+            // If this also throws "documentAccess: dynamic-page" error, we will need to fetch ALL variables 
+            // and pass a variableMap too. But let's try this first as the error was specific to Collection.
+            try {
+                const resolvedVar = figma.variables.getVariableById(alias.id);
+                if (resolvedVar) {
+                    const collection = collectionMap.get(resolvedVar.variableCollectionId);
+                    if (collection && collection.modes.length > 0) {
+                        const modeId = collection.modes[0].modeId;
+                        return resolveColor(resolvedVar.valuesByMode[modeId], collectionMap, depth + 1);
+                    }
                 }
+            } catch (e) {
+                console.warn("Failed to resolve alias:", e);
+                return null;
             }
         }
     }
