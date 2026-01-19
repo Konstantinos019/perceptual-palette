@@ -3,16 +3,20 @@
   "private": true,
   "version": "0.0.86",
   "type": "module",
+  "homepage": "https://konstantinos019.github.io/perceptual-palette",
   "scripts": {
     "dev": "BROWSER='/Applications/Arc.app' vite",
     "build": "tsc && vite build && vite build --config vite.code.config.ts",
     "preview": "vite preview",
     "test": "vitest",
-    "patch": "npm version patch --no-git-tag-version && npm run build"
+    "patch": "npm version patch --no-git-tag-version && npm run build",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
   "devDependencies": {
     "@types/culori": "^4.0.1",
     "@types/node": "^25.0.9",
+    "gh-pages": "^6.3.0",
     "typescript": "~5.9.3",
     "vite": "^7.2.4",
     "vitest": "^4.0.17"
