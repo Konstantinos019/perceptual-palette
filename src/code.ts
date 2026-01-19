@@ -24,6 +24,8 @@ syncSelectionOnLaunch();
 figma.ui.onmessage = async (msg) => {
     if (msg.type === 'CLOSE_PLUGIN') {
         figma.closePlugin();
+    } else if (msg.type === 'NOTIFY') {
+        figma.notify(msg.message || 'Action completed');
     } else if (msg.type === 'RESIZE_UI') {
         figma.ui.resize(msg.width || 525, msg.height);
     } else if (msg.type === 'GET_PALETTES') {
@@ -41,8 +43,7 @@ figma.ui.onmessage = async (msg) => {
         }
 
         // Default: Create Mode (Frame Generation + Optional Variables)
-        const { name: baseColorName, swatches } = payload;
-        const createVariables = true; // FORCED DEBUGGING
+        const { name: baseColorName, swatches, createVariables = false, createFrame = true } = payload;
 
         // DEBUG: Confirm we received the request to create variables
         if (createVariables) {
@@ -63,18 +64,21 @@ figma.ui.onmessage = async (msg) => {
             figma.loadFontAsync({ family: "Inter", style: "Regular" })
         ]);
 
-        // 1. Create Main Outer Frame
-        const container = figma.createFrame();
-        container.name = baseColorName; // Use pre-calculated name
-        container.layoutMode = "HORIZONTAL";
-        container.paddingLeft = container.paddingRight = 40;
-        container.paddingTop = container.paddingBottom = 40;
-        container.itemSpacing = 12;
-        container.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
-        container.cornerRadius = 8;
-        container.primaryAxisSizingMode = "AUTO";
-        container.counterAxisSizingMode = "AUTO";
-        container.counterAxisAlignItems = "CENTER";
+        // 1. Create Main Outer Frame (Optional)
+        let container: FrameNode | null = null;
+        if (createFrame) {
+            container = figma.createFrame();
+            container.name = baseColorName; // Use pre-calculated name
+            container.layoutMode = "HORIZONTAL";
+            container.paddingLeft = container.paddingRight = 40;
+            container.paddingTop = container.paddingBottom = 40;
+            container.itemSpacing = 12;
+            container.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
+            container.cornerRadius = 8;
+            container.primaryAxisSizingMode = "AUTO";
+            container.counterAxisSizingMode = "AUTO";
+            container.counterAxisAlignItems = "CENTER";
+        }
 
         // 2. Setup Variable Collection (Restored to [primitive] colors)
         let collection: VariableCollection | null = null;
@@ -110,90 +114,111 @@ figma.ui.onmessage = async (msg) => {
         for (const swatch of swatches) {
             const figmaColor = { r: swatch.color.r, g: swatch.color.g, b: swatch.color.b };
 
-            // Create the Card Frame
-            const card = figma.createFrame();
-            card.name = `${swatch.stop}`;
-            card.layoutMode = "VERTICAL";
-            card.itemSpacing = 8;
-            card.fills = [];
-            card.counterAxisSizingMode = "AUTO";
-            card.primaryAxisSizingMode = "AUTO";
+            // Create Visual Card if Frame is enabled
+            if (container) {
+                // Create the Card Frame
+                const card = figma.createFrame();
+                card.name = `${swatch.stop}`;
+                card.layoutMode = "VERTICAL";
+                card.itemSpacing = 8;
+                card.fills = [];
+                card.counterAxisSizingMode = "AUTO";
+                card.primaryAxisSizingMode = "AUTO";
 
-            // Color block
-            // Backup used createFrame, so we restore that exactly to be safe and "legacy compliant"
-            const colorBlockShape = figma.createFrame();
-            colorBlockShape.name = `${swatch.stop}`;
-            colorBlockShape.resize(124, 96);
-            colorBlockShape.cornerRadius = 11;
-            colorBlockShape.fills = [{ type: 'SOLID', color: figmaColor }];
-            card.appendChild(colorBlockShape);
+                // Color block
+                // Backup used createFrame, so we restore that exactly to be safe and "legacy compliant"
+                const colorBlockShape = figma.createFrame();
+                colorBlockShape.name = `${swatch.stop}`;
+                colorBlockShape.resize(124, 96);
+                colorBlockShape.cornerRadius = 11;
+                colorBlockShape.fills = [{ type: 'SOLID', color: figmaColor }];
+                card.appendChild(colorBlockShape);
 
-            // Details frame
-            const details = figma.createFrame();
-            details.name = "details";
-            details.layoutMode = "VERTICAL";
-            details.itemSpacing = 0;
-            details.fills = [];
-            details.counterAxisSizingMode = "AUTO";
-            details.primaryAxisSizingMode = "AUTO";
+                // Details frame
+                const details = figma.createFrame();
+                details.name = "details";
+                details.layoutMode = "VERTICAL";
+                details.itemSpacing = 0;
+                details.fills = [];
+                details.counterAxisSizingMode = "AUTO";
+                details.primaryAxisSizingMode = "AUTO";
 
-            // Stop label
-            const stopText = figma.createText();
-            stopText.fontName = { family: "Inter", style: "Bold" };
-            stopText.characters = `${swatch.stop}`;
-            stopText.fontSize = 16;
-            stopText.fills = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }];
-            details.appendChild(stopText);
+                // Stop label
+                const stopText = figma.createText();
+                stopText.fontName = { family: "Inter", style: "Bold" };
+                stopText.characters = `${swatch.stop}`;
+                stopText.fontSize = 16;
+                stopText.fills = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }];
+                details.appendChild(stopText);
 
-            // Hex label
-            const hexText = figma.createText();
-            hexText.fontName = { family: "Inter", style: "Regular" };
-            hexText.characters = swatch.hex.toUpperCase();
-            hexText.fontSize = 16;
-            hexText.fills = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }];
-            details.appendChild(hexText);
+                // Hex label
+                const hexText = figma.createText();
+                hexText.fontName = { family: "Inter", style: "Regular" };
+                hexText.characters = swatch.hex.toUpperCase();
+                hexText.fontSize = 16;
+                hexText.fills = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }];
+                details.appendChild(hexText);
 
-            // Contrast frame
-            const contrastFrame = figma.createFrame();
-            contrastFrame.name = "contrast";
-            contrastFrame.layoutMode = "HORIZONTAL";
-            contrastFrame.itemSpacing = 4;
-            contrastFrame.fills = [];
-            contrastFrame.counterAxisAlignItems = "CENTER";
-            contrastFrame.primaryAxisSizingMode = "AUTO";
-            contrastFrame.counterAxisSizingMode = "AUTO";
+                // Contrast frame
+                const contrastFrame = figma.createFrame();
+                contrastFrame.name = "contrast";
+                contrastFrame.layoutMode = "HORIZONTAL";
+                contrastFrame.itemSpacing = 4;
+                contrastFrame.fills = [];
+                contrastFrame.counterAxisAlignItems = "CENTER";
+                contrastFrame.primaryAxisSizingMode = "AUTO";
+                contrastFrame.counterAxisSizingMode = "AUTO";
 
-            const contrastValue = swatch.contrast;
-            const isPass = swatch.isPass;
-            const statusColor = isPass ? { r: 0, g: 0.53, b: 0.1 } : { r: 1, g: 0, b: 0 };
+                const contrastValue = swatch.contrast;
+                const isPass = swatch.isPass;
+                const statusColor = isPass ? { r: 0, g: 0.53, b: 0.1 } : { r: 1, g: 0, b: 0 };
 
-            // Icon
-            const iconText = figma.createText();
-            iconText.fontName = { family: "Inter", style: "Regular" };
-            iconText.characters = isPass ? "✓" : "⚠";
-            iconText.fontSize = 16;
-            iconText.fills = [{ type: 'SOLID', color: statusColor }];
-            contrastFrame.appendChild(iconText);
+                // Icon
+                const iconText = figma.createText();
+                iconText.fontName = { family: "Inter", style: "Regular" };
+                iconText.characters = isPass ? "✓" : "⚠";
+                iconText.fontSize = 16;
+                iconText.fills = [{ type: 'SOLID', color: statusColor }];
+                contrastFrame.appendChild(iconText);
 
-            const ratioText = figma.createText();
-            ratioText.fontName = { family: "Inter", style: "Regular" };
-            ratioText.characters = `${contrastValue.toFixed(2)}:1`;
-            ratioText.fontSize = 16;
-            ratioText.fills = [{ type: 'SOLID', color: statusColor }];
-            contrastFrame.appendChild(ratioText);
+                const ratioText = figma.createText();
+                ratioText.fontName = { family: "Inter", style: "Regular" };
+                ratioText.characters = `${contrastValue.toFixed(2)}:1`;
+                ratioText.fontSize = 16;
+                ratioText.fills = [{ type: 'SOLID', color: statusColor }];
+                contrastFrame.appendChild(ratioText);
 
-            details.appendChild(contrastFrame);
-            card.appendChild(details);
-            container.appendChild(card);
+                details.appendChild(contrastFrame);
+                card.appendChild(details);
+                container.appendChild(card);
+            }
 
-            // 4. Create Variable
-            // 4. Create Variable
+            // 4. Create Variable or Bind if Variable Exists
             if (createVariables && collection) {
                 try {
                     const varName = `${varPaletteName}/${swatch.stop}`;
                     const variable = figma.variables.createVariable(varName, collection.id, 'COLOR');
                     variable.setValueForMode(collection.modes[0].modeId, figmaColor);
-                    colorBlockShape.fills = [figma.variables.setBoundVariableForPaint(colorBlockShape.fills[0] as SolidPaint, 'color', variable)];
+
+                    // Bind to visual if it exists (Optional nice-to-have)
+                    // If we created a card above, we can bind it. But wait, we need reference to `colorBlockShape`.
+                    // It's strictly scoped inside `if (container)`.
+                    // To do this cleanly, we'd need to expose `colorBlockShape` or re-find it?
+                    // Or just duplicate the binding logic inside `if (container)`?
+                    // Actually, the previous code created the variable THEN bound it. 
+                    // Let's check `src/code.ts` original logic... 
+                    // It created variable, then: 
+                    // `colorBlockShape.fills = [figma.variables.setBoundVariableForPaint(colorBlockShape.fills[0] as SolidPaint, 'color', variable)];`
+
+                    // Since I separated them, I can't easily bind the visual unless I reference it.
+                    // For simplicity, let's skip binding if we are separating actions. 
+                    // If user does BOTH (which my UI won't support anymore), they would be unbound.
+                    // BUT, if I want to support binding when `createFrame` is TRUE, I should structure differently.
+                    // However, user asked for INDEPENDENT actions.
+                    // So if I click "Create Template", it's just a frame.
+                    // If I click "Save Variables", it's just variables.
+                    // So binding is not required/possible across these actions.
+
                 } catch (e: any) {
                     console.error(`Failed to create variable ${swatch.stop}:`, e);
                     figma.notify(`Failed to create token for ${swatch.stop}: ${e.message}`, { error: true });
@@ -201,97 +226,100 @@ figma.ui.onmessage = async (msg) => {
             }
         }
 
-        figma.currentPage.appendChild(container);
+        if (container) {
+            figma.currentPage.appendChild(container);
 
-        // 5. Positioning logic (Restored from Backup - Collision Detection)
-        let targetX = 0;
-        let targetY = 0;
-        const paletteWidth = container.width;
-        const paletteHeight = container.height;
+            // 5. Positioning logic (Restored from Backup - Collision Detection)
+            let targetX = 0;
+            let targetY = 0;
+            const paletteWidth = container.width;
+            const paletteHeight = container.height;
 
-        const selection = figma.currentPage.selection;
-        if (selection.length > 0) {
-            // Find the bounding box of current selection to place below it
-            let minX = Infinity;
-            let maxY = -Infinity;
-            for (const node of selection) {
-                // Safe cast for bounds
-                const bounds = (node as any).absoluteRenderBounds;
-                if (bounds) {
-                    if (bounds.x < minX) minX = bounds.x;
-                    const bottomY = bounds.y + bounds.height;
-                    if (bottomY > maxY) maxY = bottomY;
+            const selection = figma.currentPage.selection;
+            if (selection.length > 0) {
+                // Find the bounding box of current selection to place below it
+                let minX = Infinity;
+                let maxY = -Infinity;
+                for (const node of selection) {
+                    // Safe cast for bounds
+                    const bounds = (node as any).absoluteRenderBounds;
+                    if (bounds) {
+                        if (bounds.x < minX) minX = bounds.x;
+                        const bottomY = bounds.y + bounds.height;
+                        if (bottomY > maxY) maxY = bottomY;
+                    }
                 }
-            }
-            if (minX !== Infinity && maxY !== -Infinity) {
-                targetX = minX;
-                targetY = maxY + 80; // Generous gap from backup
+                if (minX !== Infinity && maxY !== -Infinity) {
+                    targetX = minX;
+                    targetY = maxY + 80; // Generous gap from backup
+                } else {
+                    const center = figma.viewport.center;
+                    targetX = center.x - paletteWidth / 2;
+                    targetY = center.y - paletteHeight / 2;
+                }
             } else {
                 const center = figma.viewport.center;
                 targetX = center.x - paletteWidth / 2;
                 targetY = center.y - paletteHeight / 2;
             }
-        } else {
-            const center = figma.viewport.center;
-            targetX = center.x - paletteWidth / 2;
-            targetY = center.y - paletteHeight / 2;
-        }
 
-        // Robust Collision detection using absoluteRenderBounds
-        const potentialColliders = figma.currentPage.findAll(n =>
-            n.id !== container.id &&
-            'absoluteRenderBounds' in n &&
-            (n as any).absoluteRenderBounds !== null &&
-            n.visible
-        );
+            // Robust Collision detection using absoluteRenderBounds
+            const potentialColliders = figma.currentPage.findAll(n =>
+                n.id !== container.id &&
+                'absoluteRenderBounds' in n &&
+                (n as any).absoluteRenderBounds !== null &&
+                n.visible
+            );
 
-        let foundSpace = false;
-        let attempts = 0;
-        const stepSize = 120;
+            let foundSpace = false;
+            let attempts = 0;
+            const stepSize = 120;
 
-        while (!foundSpace && attempts < 50) {
-            let collision = false;
-            const currentBounds = {
-                x: targetX,
-                y: targetY,
-                width: paletteWidth,
-                height: paletteHeight
-            };
+            while (!foundSpace && attempts < 50) {
+                let collision = false;
+                const currentBounds = {
+                    x: targetX,
+                    y: targetY,
+                    width: paletteWidth,
+                    height: paletteHeight
+                };
 
-            for (const node of potentialColliders) {
-                const other = (node as any).absoluteRenderBounds;
-                if (!other) continue;
+                for (const node of potentialColliders) {
+                    const other = (node as any).absoluteRenderBounds;
+                    if (!other) continue;
 
-                const overlapX = currentBounds.x < other.x + other.width && currentBounds.x + currentBounds.width > other.x;
-                const overlapY = currentBounds.y < other.y + other.height && currentBounds.y + currentBounds.height > other.y;
+                    const overlapX = currentBounds.x < other.x + other.width && currentBounds.x + currentBounds.width > other.x;
+                    const overlapY = currentBounds.y < other.y + other.height && currentBounds.y + currentBounds.height > other.y;
 
-                if (overlapX && overlapY) {
-                    collision = true;
-                    break;
+                    if (overlapX && overlapY) {
+                        collision = true;
+                        break;
+                    }
+                }
+
+                if (collision) {
+                    targetY += stepSize;
+                    attempts++;
+                } else {
+                    foundSpace = true;
                 }
             }
 
-            if (collision) {
-                targetY += stepSize;
-                attempts++;
-            } else {
-                foundSpace = true;
-            }
+            container.x = targetX;
+            container.y = targetY;
+
+            // 6. Finalize: Select and Zoom
+            figma.currentPage.selection = [container];
+            figma.viewport.scrollAndZoomIntoView([container]);
         }
-
-        container.x = targetX;
-        container.y = targetY;
-
-        // 6. Finalize: Select and Zoom
-        figma.currentPage.selection = [container];
-        figma.viewport.scrollAndZoomIntoView([container]);
 
         // Refresh palettes after creation (Recent Logic)
         if (createVariables) {
             await sendPalettesToUI();
+            figma.notify('Variables created successfully!');
+        } else if (createFrame) {
+            figma.notify('Visual palette created successfully!');
         }
-
-        figma.notify('Palette exported successfully!');
     }
 };
 

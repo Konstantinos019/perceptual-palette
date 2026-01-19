@@ -1,7 +1,7 @@
 {
   "name": "perceptual-palette",
   "private": true,
-  "version": "0.0.83",
+  "version": "0.0.86",
   "type": "module",
   "scripts": {
     "dev": "BROWSER='/Applications/Arc.app' vite",
@@ -12,6 +12,7 @@
   },
   "devDependencies": {
     "@types/culori": "^4.0.1",
+    "@types/node": "^25.0.9",
     "typescript": "~5.9.3",
     "vite": "^7.2.4",
     "vitest": "^4.0.17"
@@ -19,6 +20,7 @@
   "dependencies": {
     "@figma/plugin-typings": "^1.121.0",
     "culori": "^4.0.2",
+    "lucide": "^0.562.0",
     "vite-plugin-singlefile": "^2.3.0"
   }
 }

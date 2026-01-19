@@ -1,9 +1,29 @@
 import { generateSwatches, generateOKLCHSwatches, wcagContrast, hsl, rgb, lch, hsv, hexToFigmaRgb, getColorName, oklch, formatHex, getContrastBackground, formatColumnValue } from './colorLogic';
 import { DOM_IDS, type PaletteConfig, type SwatchResult, type FigmaExportPayload, type DetectedPalette } from './types';
+import {
+    createIcons,
+    RefreshCw,
+    Moon,
+    Sun,
+    HelpCircle,
+    Pipette,
+    Plus,
+    Palette,
+    Download,
+    X,
+    AlertCircle,
+    Save,
+    Trash2,
+    CheckCircle,
+    Copy,
+    Settings,
+    MoreVertical,
+    GripVertical
+} from 'lucide';
 
 // State
 const STANDARD_STOPS = [100, 200, 300, 400, 500, 600, 700, 800, 900];
-const HUE_OFFSET = 29; // Slider 0 maps to OKLCH 29° (Red)
+const HUE_OFFSET = 0; // Slider 0 maps to OKLCH 0° (direct mapping)
 
 interface AppState extends PaletteConfig {
     anchorStop: number;
@@ -11,7 +31,6 @@ interface AppState extends PaletteConfig {
     oklchHue: number;
     oklchVividness: number;
     theme: 'dark' | 'light';
-    anchorTheme: 'dark' | 'light';
 }
 
 const INITIAL_STATE: AppState = {
@@ -23,8 +42,7 @@ const INITIAL_STATE: AppState = {
     paletteMode: 'oklch',
     oklchHue: 297,
     oklchVividness: 1,
-    theme: 'light',
-    anchorTheme: 'light'
+    theme: 'light'
 };
 
 let state: AppState = JSON.parse(JSON.stringify(INITIAL_STATE));
@@ -57,9 +75,12 @@ function getEl<T extends HTMLElement>(id: string): T | null {
 // Elements
 const colorInput = getEl<HTMLInputElement>(DOM_IDS.BASE_COLOR_INPUT);
 const colorPicker = getEl<HTMLInputElement>('base-color-picker');
+const copyAnchorBtn = document.getElementById('copy-anchor-hex');
+const anchorSwatchTrigger = document.getElementById('anchor-swatch-trigger');
 const container = getEl<HTMLElement>(DOM_IDS.STOPS_CONTAINER);
 const modal = getEl<HTMLElement>(DOM_IDS.REFINE_MODAL);
-const exportBtn = getEl<HTMLButtonElement>(DOM_IDS.EXPORT_BTN);
+const btnSaveVars = getEl<HTMLButtonElement>('btn-save-vars');
+const btnCreateTemplate = getEl<HTMLButtonElement>('btn-create-template');
 const resetBtn = getEl<HTMLButtonElement>('reset-plugin');
 const hueSlider = getEl<HTMLInputElement>('hue-slider');
 const chromaSlider = getEl<HTMLInputElement>('chroma-slider');
@@ -74,20 +95,13 @@ const oklchHueValue = getEl<HTMLElement>('oklch-hue-value');
 const oklchVividnessSlider = getEl<HTMLInputElement>('oklch-vividness-slider');
 const oklchVividnessValue = getEl<HTMLElement>('oklch-vividness-value');
 const modeThumb = getEl<HTMLElement>('mode-thumb');
-
 const themeToggleBtn = getEl<HTMLButtonElement>('theme-toggle');
-const themeIconDark = getEl<HTMLElement>('theme-icon-dark');
-const themeIconLight = getEl<HTMLElement>('theme-icon-light');
-const tokensToggle = getEl<HTMLElement>('create-tokens-toggle');
+
 
 // Sidebar Elements (V 0.0.80)
 const palettePillsContainer = getEl<HTMLElement>('palette-pills');
 const addPaletteBtn = getEl<HTMLButtonElement>('add-palette-btn');
 
-const anchorThemeToggle = getEl<HTMLElement>('anchor-theme-toggle');
-const anchorThemeRow = getEl<HTMLElement>('tool-anchor-theme');
-const anchorIconDark = getEl<HTMLElement>('anchor-icon-dark');
-const anchorIconLight = getEl<HTMLElement>('anchor-icon-light');
 
 
 /**
@@ -113,11 +127,11 @@ function syncColorInputs(source: 'hex' | 'sliders') {
     } else {
         // Sliders are source
         // Construct a representative HEX for the "Anchor color" pill
-        // using the current hue/vividness while PRESERVING current lightness
-        const currentColor = oklch(state.baseColor) || { l: 0.5, c: 0, h: 0 };
+        // Use a fixed lightness of 0.68 to match the gradient preview
+        // This ensures the anchor color accurately represents the selected hue
         const representativeColor = {
             mode: 'oklch' as const,
-            l: currentColor.l,
+            l: 0.68, // Match gradient lightness for consistency
             c: state.oklchVividness * 0.4, // Match the 0.4 normalization
             h: state.oklchHue
         };
@@ -129,7 +143,9 @@ function syncColorInputs(source: 'hex' | 'sliders') {
 
     // Always update the preview pill background
     const previewBg = document.getElementById('color-preview-bg');
-    if (previewBg) previewBg.style.background = state.baseColor;
+    if (previewBg) {
+        previewBg.style.background = state.baseColor;
+    }
 
     // Always update Vividness slider background to reflect current hue
     const vividWrapper = document.querySelector('.vivid-slider-wrapper') as HTMLElement;
@@ -143,19 +159,57 @@ function syncColorInputs(source: 'hex' | 'sliders') {
 
     // Always update Hue slider background to match OKLCH progression
     // Synchronized with Vividness state in V 0.0.64
+    // Fixed in V 0.0.86: Proper 0-360° gradient without edge wrapping
     const hueWrapper = document.querySelector('.hue-slider-wrapper') as HTMLElement;
     if (hueWrapper) {
-        const steps = 36;
+        // Generate a clean 0° to 360° gradient
+        // 0° (red) should appear on the left, and 360° (red again) on the right
+        const steps = 37; // 37 steps gives us 0°, 10°, 20°... 350°, 360°
         const gradientColors = [];
-        const dynamicChroma = Math.max(0, state.oklchVividness * 0.32); // Use dynamic vividness
-        for (let i = 0; i <= steps; i++) {
-            const logicalHue = (i * (360 / steps) + HUE_OFFSET) % 360;
-            const c = formatHex({ mode: 'oklch', l: 0.68, c: dynamicChroma, h: logicalHue }) || '#ff0000';
-            gradientColors.push(c);
+        const dynamicChroma = Math.max(0, state.oklchVividness * 0.32);
+
+        for (let i = 0; i < steps; i++) {
+            const hue = i * 360 / (steps - 1); // Evenly distribute from 0 to 360
+            const color = formatHex({ mode: 'oklch', l: 0.68, c: dynamicChroma, h: hue }) || '#ff0000';
+            gradientColors.push(color);
         }
         hueWrapper.style.background = `linear-gradient(to right, ${gradientColors.join(', ')})`;
     }
 }
+
+/**
+ * Initializes all UI sliders and displays to match the current state.
+ * Called once on page load to ensure HTML defaults are overridden.
+ */
+function initializeSliders() {
+    // Sync OKLCH Hue Slider
+    if (oklchHueSlider && oklchHueValue) {
+        const sliderHue = (state.oklchHue - HUE_OFFSET + 360) % 360;
+        oklchHueSlider.value = String(Math.round(sliderHue));
+        oklchHueValue.innerText = `${state.oklchHue}°`;
+    }
+
+    // Sync OKLCH Vividness Slider
+    if (oklchVividnessSlider && oklchVividnessValue) {
+        const vividnessPct = Math.round(state.oklchVividness * 100);
+        oklchVividnessSlider.value = String(vividnessPct);
+        oklchVividnessValue.innerText = `${vividnessPct}%`;
+    }
+
+    // Sync color input and picker with base color
+    if (colorInput) colorInput.value = state.baseColor.toUpperCase();
+    if (colorPicker) colorPicker.value = state.baseColor;
+
+    // Sync anchor color preview background
+    const previewBg = document.getElementById('color-preview-bg');
+    if (previewBg) {
+        previewBg.style.background = state.baseColor;
+    }
+
+    // Update slider backgrounds to match current state
+    syncColorInputs('hex');
+}
+
 
 function getSwatches(): SwatchResult[] {
     const swatches = state.paletteMode === 'oklch'
@@ -165,7 +219,7 @@ function getSwatches(): SwatchResult[] {
             stops: state.stops,
             overrides: state.overrides,
             anchorStop: state.anchorStop,
-            anchorTheme: state.anchorTheme
+            anchorTheme: 'light'
         });
 
     // Post-process with contrast against theme
@@ -181,6 +235,42 @@ function update() {
     try {
         lastSwatches = getSwatches();
         render(lastSwatches);
+        // Inject Lucide icons into any new DOM elements
+        createIcons({
+            icons: {
+                RefreshCw,
+                Moon,
+                Sun,
+                HelpCircle,
+                Pipette,
+                Plus,
+                Palette,
+                Download,
+                X,
+                AlertCircle,
+                Save,
+                Trash2,
+                CheckCircle,
+                Copy,
+                Settings,
+                MoreVertical,
+                GripVertical
+            },
+            attrs: {
+                width: 16,
+                height: 16,
+                'stroke-width': 2
+            }
+        });
+
+        // RE-BIND TOOLTIP: Lucide replaces the i tag, so we must re-attach listeners
+        requestAnimationFrame(() => {
+            const newTooltipTrigger = document.getElementById('gen-mode-help');
+            if (newTooltipTrigger) {
+                newTooltipTrigger.onmouseenter = showTooltip;
+                newTooltipTrigger.onmouseleave = startHideTimeout;
+            }
+        });
     } catch (e) {
         console.error('Update failed', e);
     }
@@ -206,10 +296,10 @@ function render(swatches: SwatchResult[]) {
         `;
     }
 
-    // Status Icon Helper (Material Symbols Rounded)
+    // Status Icon Helper
     const getStatusIcon = (passed: boolean) => passed ?
-        `<span class="status-icon check"><svg class="icon-svg"><use href="#icon-check_circle"></use></svg></span>` :
-        `<span class="status-icon warning"><svg class="icon-svg"><use href="#icon-warning"></use></svg></span>`;
+        `<span class="status-icon check"><i data-lucide="check-circle" class="icon-svg" style="width: 14px; height: 14px;"></i></span>` :
+        `<span class="status-icon warning"><i data-lucide="alert-circle" class="icon-svg" style="width: 14px; height: 14px;"></i></span>`;
 
     // 0. WHITE PLACEHOLDER (Reference)
     const whiteRow = document.createElement('div');
@@ -237,7 +327,13 @@ function render(swatches: SwatchResult[]) {
                 if (tempSwatch.hex.toLowerCase() !== '#ffffff') {
                     const edgeRowStart = document.createElement('div');
                     edgeRowStart.className = 'insertion-row';
-                    edgeRowStart.innerHTML = `<button class="insert-btn" title="Add stop ${edgeMidpoint}">+</button>`;
+                    edgeRowStart.innerHTML = `
+                        <div class="insertion-line"></div>
+                        <button class="insert-btn" title="Add stop ${edgeMidpoint}">
+                            <i data-lucide="plus" class="icon-svg" style="width: 12px; height: 12px;"></i>
+                        </button>
+                        <div class="insertion-line"></div>
+                    `;
                     const btn = edgeRowStart.querySelector('.insert-btn') as HTMLButtonElement;
                     if (btn) {
                         btn.onclick = () => {
@@ -269,8 +365,8 @@ function render(swatches: SwatchResult[]) {
 
         const isIntermediate = !STANDARD_STOPS.includes(Number(s.stop)) && !s.isAnchor;
         let deleteBtnHtml = '';
-        if (isIntermediate) {
-            deleteBtnHtml = `<span class="delete-stop-btn" title="Remove stop"><svg class="icon-svg" style="font-size: 16px;"><use href="#icon-delete"></use></svg></span>`;
+        if (isIntermediate && swatches.length > 2) {
+            deleteBtnHtml = `<span class="delete-stop-btn" title="Remove stop"><i data-lucide="trash-2" class="icon-svg" style="width: 14px; height: 14px;"></i></span>`;
         }
 
         const rowVal = formatColumnValue(isPerceptual ? (s.lch?.l || 0) : parseFloat(contrast), isPerceptual);
@@ -320,7 +416,13 @@ function render(swatches: SwatchResult[]) {
         if (midpoint > currentStop && midpoint < nextStop && !state.stops.includes(midpoint)) {
             const insertionRow = document.createElement('div');
             insertionRow.className = 'insertion-row';
-            insertionRow.innerHTML = `<button class="insert-btn" title="Add stop ${midpoint}">+</button>`;
+            insertionRow.innerHTML = `
+                <div class="insertion-line"></div>
+                <button class="insert-btn" title="Add stop ${midpoint}">
+                    <i data-lucide="plus" class="icon-svg" style="width: 12px; height: 12px;"></i>
+                </button>
+                <div class="insertion-line"></div>
+            `;
 
             const btn = insertionRow.querySelector('.insert-btn') as HTMLButtonElement;
             if (btn) {
@@ -950,17 +1052,60 @@ function updateModalPreview() {
     }
 }
 
+/**
+ * Resolves a color string (name or hex) to a 6-digit hex.
+ * Uses culori's robust parser.
+ */
+function resolveInputColor(input: string): string | null {
+    const raw = input.trim();
+    if (!raw) return null;
+
+    // 1. Try resolving as-is (handles names like 'red' and valid #hex)
+    let color = rgb(raw);
+
+    // 2. If it failed, try prepending '#' (for hexes typed without it)
+    if (!color && !raw.startsWith('#')) {
+        color = rgb('#' + raw);
+    }
+
+    if (color) {
+        return formatHex(color);
+    }
+
+    return null;
+}
+
 // Event Listeners (Base Color)
 if (colorInput) {
     colorInput.oninput = (e) => {
         const target = e.target as HTMLInputElement;
         let val = target.value;
-        if (!val.startsWith('#')) val = '#' + val;
-        if (/^#[0-9A-F]{6}$/i.test(val)) {
-            state.baseColor = val;
-            if (colorPicker) colorPicker.value = val;
+
+        // Auto-prepend '#' if it looks like a hex/partial hex and not a CSS name
+        // (Starts with a hex digit and is not a valid color name yet)
+        if (val && !val.startsWith('#') && /^[0-9a-fA-F]/.test(val) && !rgb(val)) {
+            val = '#' + val;
+            target.value = val;
+        }
+
+        const resolved = resolveInputColor(val);
+        if (resolved) {
+            state.baseColor = resolved;
+            if (colorPicker) colorPicker.value = resolved;
             syncColorInputs('hex');
             update();
+            // syncColorInputs will format the input value to uppercase hex
+        }
+    };
+
+    colorInput.onblur = () => {
+        // Ensure we always end with a valid hex in the field
+        colorInput.value = state.baseColor.toUpperCase();
+    };
+
+    colorInput.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+            colorInput.blur();
         }
     };
 }
@@ -993,10 +1138,6 @@ function setMode(mode: 'legacy' | 'oklch') {
         modeThumb.style.transform = mode === 'legacy' ? 'translateX(0)' : 'translateX(100%)';
     }
 
-    // V 0.0.82: Toggle visibility of Anchor Contrast based on mode
-    if (anchorThemeRow) {
-        anchorThemeRow.style.display = mode === 'legacy' ? 'flex' : 'none';
-    }
 
     // Both modes now share the same color picking options (sliders + hex)
     // as they are bi-directionally synced.
@@ -1038,24 +1179,13 @@ if (oklchVividnessSlider) {
 }
 
 
-exportBtn?.addEventListener('click', () => {
-    const tokensToggle = document.getElementById('create-tokens-toggle');
-    const createVariables = tokensToggle ? tokensToggle.classList.contains('active') : false;
-
-    // Use getSwatches to respect current mode, excluding pure white/black
-    const swatches = getSwatches().filter(s =>
-        s.hex.toLowerCase() !== '#ffffff' && s.hex.toLowerCase() !== '#000000'
-    );
-
-    // Prepare "Dumb Renderer" Payload
-    // We do ALL the math here so code.ts is just a view layer.
-    const anchorSwatch = swatches.find(s => s.isAnchor) || swatches[Math.floor(swatches.length / 2)];
-    const safeAnchor = anchorSwatch || swatches[0];
-
-    // For OKLCH mode, use hue-based naming
+// Helper to construct payload
+function getPayload(isUpdate: boolean): FigmaExportPayload {
+    // Determine Base Name
+    const safeAnchor = lastSwatches.find(s => s.isAnchor) || lastSwatches[0];
     let baseColorName: string;
+
     if (state.paletteMode === 'oklch') {
-        // Map hue to color name
         const hue = state.oklchHue;
         if (hue < 15 || hue >= 345) baseColorName = 'Red';
         else if (hue < 45) baseColorName = 'Orange';
@@ -1070,11 +1200,14 @@ exportBtn?.addEventListener('click', () => {
         baseColorName = getColorName(hexToFigmaRgb(safeAnchor?.hex || state.baseColor));
     }
 
-    const finalSwatches = swatches.map(s => {
-        const rgb = hexToFigmaRgb(s.hex);
-        // Calculate contrast against theme background
-        const contrast = wcagContrast(s.hex, getContrastBackground(state.theme));
+    // Filter Swatches (No pure white/black)
+    const activeSwatches = getSwatches().filter(s =>
+        s.hex.toLowerCase() !== '#ffffff' && s.hex.toLowerCase() !== '#000000'
+    );
 
+    const finalSwatches = activeSwatches.map(s => {
+        const rgb = hexToFigmaRgb(s.hex);
+        const contrast = wcagContrast(s.hex, getContrastBackground(state.theme));
         return {
             stop: s.stop,
             hex: s.hex,
@@ -1086,15 +1219,103 @@ exportBtn?.addEventListener('click', () => {
         };
     });
 
-    // Construct Typesafe Payload
-    const action = originalPaletteData ? 'update' : 'create';
-    const payload: FigmaExportPayload = {
+    const action = isUpdate ? 'update' : 'create';
+
+    return {
         name: baseColorName,
-        createVariables,
+        createVariables: false, // Default, overridden by caller
         swatches: finalSwatches,
         action: action,
         paletteId: selectedPaletteId || undefined
     };
+}
+
+// 1. SAVE VARIABLES HANDLER
+btnSaveVars?.addEventListener('click', () => {
+    const isUpdate = !!(originalPaletteData && selectedPaletteId);
+    const payload = getPayload(isUpdate);
+
+    // Config for Variables
+    payload.createVariables = true;
+    payload.createFrame = false;
+
+    // Force 'create' action if we are just saving a new palette's variables (not updating existing)
+    // But getPayload sets handled isUpdate. 
+    // code.ts `if (payload.action === 'update')` handles the update logic.
+    // If it's a new palette (isUpdate false), it falls through to default create logic.
+
+    parent.postMessage({
+        pluginMessage: {
+            type: 'EXPORT_TO_FIGMA',
+            payload: payload
+        }
+    }, '*');
+});
+
+// Robust Copy to Clipboard (V 0.0.84)
+const copyToClipboard = (text: string) => {
+    // Attempt modern API first
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+    } else {
+        fallbackCopy(text);
+    }
+};
+
+const fallbackCopy = (text: string) => {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.left = "-9999px";
+    textArea.style.top = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+        document.execCommand('copy');
+    } catch (err) {
+        console.error('Fallback copy failed', err);
+    }
+    document.body.removeChild(textArea);
+};
+
+// Anchor Swatch: Triggers EyeDropper (V 0.0.84)
+anchorSwatchTrigger?.addEventListener('click', async () => {
+    // @ts-ignore - EyeDropper is a modern experimental API
+    if (window.EyeDropper) {
+        try {
+            // @ts-ignore
+            const eyeDropper = new EyeDropper();
+            const result = await eyeDropper.open();
+            if (result.sRGBHex) {
+                state.baseColor = result.sRGBHex;
+                syncColorInputs('hex');
+                update();
+            }
+        } catch (e) {
+            console.warn('EyeDropper cancelled or failed', e);
+        }
+    } else {
+        // Fallback to native picker
+        colorPicker?.click();
+    }
+});
+
+// Anchor Copy: Figma-style notification
+copyAnchorBtn?.addEventListener('click', () => {
+    const val = state.baseColor.toUpperCase();
+    copyToClipboard(val);
+    parent.postMessage({ pluginMessage: { type: 'NOTIFY', message: 'Hex code copied!' } }, '*');
+});
+
+// 2. CREATE TEMPLATE HANDLER
+btnCreateTemplate?.addEventListener('click', () => {
+    // Template creation is always a "create" action for the frame
+    // We do NOT want to trigger the 'update' logic in code.ts which returns early.
+    const payload = getPayload(false); // Force create mode
+
+    payload.createVariables = false;
+    payload.createFrame = true;
 
     parent.postMessage({
         pluginMessage: {
@@ -1268,35 +1489,23 @@ function checkDirty() {
 /**
  * Updates the main action button text based on state (V 0.0.80)
  */
+/**
+ * Updates the Save Variables button text based on state (V 0.0.80)
+ */
 function updateButtonState() {
-    if (!exportBtn) return;
-    const btnText = document.getElementById('btn-text');
+    if (!btnSaveVars) return;
+    const btnText = document.getElementById('btn-text-vars');
     if (!btnText) return;
 
     if (originalPaletteData && isDirty) {
         // Editing existing palette with changes
-        btnText.innerHTML = `Save Changes`;
-        exportBtn.classList.add('btn--save');
-        // Update Icon if possible, or just text? 
-        // The implementation plan says update innerHTML of exportBtn but current HTML might lose icon.
-        // Let's replace the whole innerHTML to be safe
-        exportBtn.innerHTML = `
-            <svg class="icon-svg btn-icon"><use href="#icon-save"></use></svg>
-            <span id="btn-text">Save Changes</span>
-        `;
+        btnText.innerHTML = `Update variables`;
     } else if (originalPaletteData && !isDirty) {
-        // Editing existing palette with NO changes
-        exportBtn.innerHTML = `
-            <svg class="icon-svg btn-icon"><use href="#icon-check_circle_filled"></use></svg>
-            <span id="btn-text">Saved</span>
-        `;
+        // Saved state
+        btnText.innerHTML = `Saved`;
     } else {
         // Creating new palette
-        exportBtn.innerHTML = `
-             <svg class="icon-svg btn-icon"><use href="#icon-palette"></use></svg>
-             <span id="btn-text">Generate Palette</span>
-        `;
-        exportBtn.classList.remove('btn--save');
+        btnText.innerHTML = `Generate variables`;
     }
 }
 
@@ -1310,16 +1519,21 @@ function setThemeUI(theme: 'light' | 'dark') {
     state.theme = theme;
     document.body.classList.toggle('light-theme', theme === 'light');
 
-    // Update Icons
-    if (theme === 'light') {
-        if (themeIconDark) themeIconDark.style.display = 'none';
-        if (themeIconLight) themeIconLight.style.display = 'block';
-    } else {
-        if (themeIconDark) themeIconDark.style.display = 'block';
-        if (themeIconLight) themeIconLight.style.display = 'none';
-    }
-
     update();
+
+    // CRITICAL: Re-fetch icons after createIcons() has replaced the DOM elements
+    // Lucide replaces <i> tags with SVG, making initial references stale
+    const currentThemeIconLight = getEl<HTMLElement>('theme-icon-light');
+    const currentThemeIconDark = getEl<HTMLElement>('theme-icon-dark');
+
+    // Update Icons: Sun in Light, Moon in Dark
+    if (theme === 'light') {
+        if (currentThemeIconLight) currentThemeIconLight.style.display = 'block';  // Sun
+        if (currentThemeIconDark) currentThemeIconDark.style.display = 'none';    // Moon hidden
+    } else {
+        if (currentThemeIconLight) currentThemeIconLight.style.display = 'none';  // Sun hidden
+        if (currentThemeIconDark) currentThemeIconDark.style.display = 'block';   // Moon
+    }
 }
 
 function toggleTheme() {
@@ -1345,72 +1559,66 @@ const tooltipTrigger = document.getElementById('gen-mode-help');
 const globalTooltip = document.getElementById('global-tooltip');
 let tooltipHideTimeout: number | null = null;
 
+const showTooltip = () => {
+    if (!tooltipTrigger || !globalTooltip) return;
+    if (tooltipHideTimeout) {
+        clearTimeout(tooltipHideTimeout);
+        tooltipHideTimeout = null;
+    }
+
+    const rect = tooltipTrigger.getBoundingClientRect();
+    globalTooltip.style.display = 'block';
+
+    // Calculate dimensions
+    const tooltipWidth = 260; // Fixed in CSS
+    const padding = 16;
+
+    // Horizontal Positioning (Centered by default)
+    let left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+
+    // Right Edge Detection
+    if (left + tooltipWidth > window.innerWidth - padding) {
+        left = window.innerWidth - tooltipWidth - padding;
+    }
+
+    // Left Edge Detection
+    if (left < padding) {
+        left = padding;
+    }
+
+    // Vertical Positioning (Above by default)
+    let top = rect.top - globalTooltip.offsetHeight - 12;
+
+    // Top Edge Detection (Flip to bottom if no space)
+    if (top < padding) {
+        top = rect.bottom + 12;
+    }
+
+    globalTooltip.style.left = `${left}px`;
+    globalTooltip.style.top = `${top}px`;
+
+    // Trigger opacity transition
+    requestAnimationFrame(() => {
+        globalTooltip.classList.add('active');
+    });
+};
+
+const startHideTimeout = () => {
+    if (!globalTooltip) return;
+    if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
+    tooltipHideTimeout = window.setTimeout(() => {
+        globalTooltip.classList.remove('active');
+        setTimeout(() => {
+            if (!globalTooltip.classList.contains('active')) {
+                globalTooltip.style.display = 'none';
+            }
+        }, 200);
+        tooltipHideTimeout = null;
+    }, 300); // 300ms persistence window
+};
+
 if (tooltipTrigger && globalTooltip) {
-    const showTooltip = () => {
-        if (tooltipHideTimeout) {
-            clearTimeout(tooltipHideTimeout);
-            tooltipHideTimeout = null;
-        }
 
-        const rect = tooltipTrigger.getBoundingClientRect();
-        globalTooltip.style.display = 'block';
-
-        // Calculate dimensions
-        const tooltipWidth = 260; // Fixed in CSS
-        const padding = 16;
-
-        // Horizontal Positioning (Centered by default)
-        let left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
-
-        // Right Edge Detection
-        if (left + tooltipWidth > window.innerWidth - padding) {
-            left = window.innerWidth - tooltipWidth - padding;
-        }
-
-        // Left Edge Detection
-        if (left < padding) {
-            left = padding;
-        }
-
-        // Vertical Positioning (Above by default)
-        let top = rect.top - globalTooltip.offsetHeight - 12;
-
-        // Top Edge Detection (Flip to bottom if no space)
-        if (top < padding) {
-            top = rect.bottom + 12;
-        }
-
-        globalTooltip.style.left = `${left}px`;
-        globalTooltip.style.top = `${top}px`;
-
-        // Trigger opacity transition
-        requestAnimationFrame(() => {
-            globalTooltip.classList.add('active');
-        });
-    };
-
-    const startHideTimeout = () => {
-        if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
-        tooltipHideTimeout = window.setTimeout(() => {
-            globalTooltip.classList.remove('active');
-            setTimeout(() => {
-                if (!globalTooltip.classList.contains('active')) {
-                    globalTooltip.style.display = 'none';
-                }
-            }, 200);
-            tooltipHideTimeout = null;
-        }, 300); // 300ms persistence window
-    };
-
-    tooltipTrigger.onmouseenter = showTooltip;
-    tooltipTrigger.onmouseleave = startHideTimeout;
-
-    globalTooltip.onmouseenter = () => {
-        if (tooltipHideTimeout) {
-            clearTimeout(tooltipHideTimeout);
-            tooltipHideTimeout = null;
-        }
-    };
     globalTooltip.onmouseleave = startHideTimeout;
 }
 
@@ -1435,34 +1643,12 @@ function resetPlugin() {
     setThemeUI(state.theme);
 
     // Reset UI
-    tokensToggle?.classList.remove('active');
     update();
 }
 
-// Tokens toggle switch
-if (tokensToggle) {
-    tokensToggle.onclick = () => {
-        tokensToggle.classList.toggle('active');
-    };
-}
+// Tokens toggle removed
 
 // Anchor Theme Toggle
-if (anchorThemeToggle) {
-    function setAnchorThemeUI(theme: 'light' | 'dark') {
-        state.anchorTheme = theme;
-        if (anchorIconDark) anchorIconDark.style.display = theme === 'dark' ? 'block' : 'none';
-        if (anchorIconLight) anchorIconLight.style.display = theme === 'light' ? 'block' : 'none';
-        if (anchorThemeToggle) anchorThemeToggle.classList.toggle('active', theme === 'dark');
-        update();
-    }
-
-    anchorThemeToggle.onclick = () => {
-        setAnchorThemeUI(state.anchorTheme === 'dark' ? 'light' : 'dark');
-    };
-
-    // Initial Sync
-    setAnchorThemeUI(state.anchorTheme);
-}
 
 // Initial mode and UI sync
 if (typeof APP_VERSION !== 'undefined') {
@@ -1471,8 +1657,9 @@ if (typeof APP_VERSION !== 'undefined') {
 }
 
 syncColorInputs('hex'); // Alignment hex -> sliders
+initializeSliders(); // Initialize all sliders and UI elements with state values
 setMode(state.paletteMode); // This calls update() internally
-tokensToggle?.classList.remove('active'); // Explicitly force off on boot
+// tokensToggle?.classList.remove('active'); // Explicitly force off on boot
 
 // Dynamic Resizing Logic
 let resizeTimeout: number;

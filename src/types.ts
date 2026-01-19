@@ -104,6 +104,7 @@ export interface FigmaExportPayload {
     // V 0.0.80: Database Action
     action?: 'create' | 'update';
     paletteId?: string; // hueName
+    createFrame?: boolean;
 }
 
 /**
