@@ -1725,7 +1725,7 @@ function applyUIState() {
     if (uiState === 'default') {
         const btn = createButton({
             id: 'btn-footer-canvas-full',
-            text: 'Create palette on canvas',
+            text: 'Visualise palette on canvas',
             icon: 'figma-logo',
             variant: 'secondary',
             className: 'w-full',
@@ -1738,7 +1738,7 @@ function applyUIState() {
 
         const canvasBtn = createButton({
             id: 'btn-footer-canvas',
-            text: 'Create on canvas',
+            text: 'Visualise on canvas',
             icon: 'figma-logo',
             variant: 'secondary',
             className: 'w-full',

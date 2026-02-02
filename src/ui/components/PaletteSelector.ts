@@ -10,11 +10,10 @@ export interface PaletteSelectorProps {
 export function createPaletteSelector(props: PaletteSelectorProps): HTMLElement {
     const { palettes, selectedId, onSelect, onAdd } = props;
 
-    // Outer container matches .color-tool    // Container
+    // Outer container matches .color-tool row
     const container = document.createElement('div');
-    container.id = 'palette-menu'; // Renamed from palette-sidebar
-    container.className = 'palette-selector';
-    // Keep ID for replacement in ui.ts
+    container.id = 'palette-menu';
+    container.className = 'color-tool palette-selector-row';
 
     // Label on the left - Always "Color palettes" per design
     const header = document.createElement('div');

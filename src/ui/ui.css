@@ -1768,8 +1768,9 @@ body:not(.light-theme) {
 }
 
 .figma-img {
-  height: 20px;
-  width: auto;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
   display: block;
 }
 
@@ -2444,7 +2445,7 @@ body:not(.light-theme) .btn--ghost-circle:hover {
   opacity: 1;
 }
 
-body:not(.light-theme) #palette-sidebar {
+body:not(.light-theme) #palette-menu {
   background: #2C2C2C;
   border-color: #333;
 }
