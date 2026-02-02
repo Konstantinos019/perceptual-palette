@@ -518,8 +518,9 @@ body:not(.light-theme) .header-edit-btn:hover {
   padding: 16px;
   background: white;
   border: none;
-  border-radius: 0;
-  /* Removed radius to merge with list */
+  border-radius: 0 0 18px 18px !important;
+  position: relative;
+  z-index: 10;
   /* Transitions */
   overflow: hidden;
   transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
@@ -955,23 +956,20 @@ body:not(.light-theme) .smart-switch.active {
   display: flex;
   flex-direction: column;
   width: 100%;
-  background: var(--bg-card);
-  /* Unified background for the whole group */
-}
-
-/* Unified Main Card Group */
-.main-card-group {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  /* Ensure children don't overflow radius */
+  background: transparent;
+  /* Background on individual blocks */
 }
 
 /* Settings Card */
 .params-card {
-  min-height: min-content;
+  /* ... existing ... */
+  flex-shrink: 0;
+  margin-bottom: -18px;
+  /* Magic Join: Pull results up */
+  position: relative;
+  z-index: 20;
+  border-radius: 18px;
+  /* Rounded overall, but bottom overlapped */
 }
 
 .card-section {
@@ -1953,15 +1951,16 @@ body:not(.light-theme) .btn--secondary-filled:hover {
 .palette-container {
   flex: 1;
   min-height: 0;
+  background: var(--bg-card);
+  border: none;
+  border-radius: 18px;
+  /* Use filter: drop-shadow to support transparency */
+  filter: drop-shadow(0px 1.536px 12.284px rgba(0, 0, 0, 0.08));
   overflow: hidden;
   margin-top: 0;
-  /* Removed margin to merge with settings */
-  background: transparent;
-  /* Transparent to show group bg */
-  filter: none;
-  /* Removed filter */
-  border-radius: 0;
-  /* Removed radius */
+  padding-top: 18px;
+  /* Compensate for negative margin overlap */
+  z-index: 5;
 }
 
 .palette-list {
@@ -2430,8 +2429,7 @@ body:not(.light-theme) .btn--ghost-circle:hover {
   display: flex;
   width: 100%;
   background: white;
-  border-radius: 0;
-  /* Removed radius */
+  border-radius: 0 18px 18px 18px !important;
   margin-bottom: 0;
   border-bottom: none;
   /* Smooth transitions */
