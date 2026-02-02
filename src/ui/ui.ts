@@ -1421,7 +1421,7 @@ window.onmessage = (event) => {
  */
 function renderPaletteSidebar() {
     const s = getState();
-    const sidebar = document.getElementById('palette-sidebar');
+    const sidebar = document.getElementById('palette-menu'); // Formerly palette-sidebar
     if (!sidebar) return;
 
     const uiState = computeUIState();
