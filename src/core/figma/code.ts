@@ -36,6 +36,11 @@ figma.ui.onmessage = async (msg) => {
         figma.notify(msg.message || 'Action completed');
     } else if (msg.type === 'RESIZE_UI') {
         figma.ui.resize(msg.width || 525, msg.height);
+    } else if (msg.type === 'OPEN_EXTERNAL_URL') {
+        // Handle external link requests from UI (Figma sandbox blocks direct navigation)
+        if (msg.url && typeof msg.url === 'string') {
+            figma.openExternal(msg.url);
+        }
     } else if (msg.type === 'GET_PALETTES') {
         // Phase 1 + 3: Read existing palettes data using helper
         await sendPalettesToUI();

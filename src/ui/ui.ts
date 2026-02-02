@@ -1,5 +1,4 @@
-import { generateSwatches, wcagContrast, hsl, rgb, lch, hsv, hexToFigmaRgb, getColorName, oklch, formatHex, getContrastBackground, formatColumnValue } from '../lib/color/colorLogic';
-import { generatePerceptualV2 } from '../lib/color/perceptual_v2';
+import { generateSwatches, generateOKLCHSwatches, wcagContrast, hsl, rgb, lch, hsv, hexToFigmaRgb, getColorName, oklch, formatHex, getContrastBackground, formatColumnValue } from '../lib/color/colorLogic';
 import { DOM_IDS, type SwatchResult, type FigmaExportPayload } from '../lib/tokens/types';
 import { StateManager } from './state';
 import {
@@ -29,7 +28,7 @@ import { createPaletteRow } from './components/PaletteRow';
 import { createPaletteSelector } from './components/PaletteSelector';
 import { createButton } from './components/Button';
 
-import { createSegmentController } from './components/SegmentController';
+// import { createSegmentController } from './components/SegmentController'; // Kept in codebase but unused
 import { createRefineModal } from './components/RefineModal';
 
 // Declare global for Vite define
@@ -58,13 +57,118 @@ function getEl<T extends HTMLElement>(id: string): T | null {
 // Elements
 const colorInput = getEl<HTMLInputElement>(DOM_IDS.BASE_COLOR_INPUT);
 const colorPicker = getEl<HTMLInputElement>('base-color-picker');
+
+// --- Global Tooltip Implementation (Anchored, Link-Clickable) ---
+const globalTooltip = document.createElement('div');
+globalTooltip.className = 'global-tooltip';
+document.body.appendChild(globalTooltip);
+
+let isOverIcon = false;
+let isOverTooltip = false;
+let tooltipHideTimeout: ReturnType<typeof setTimeout> | null = null;
+
+const positionTooltip = (trigger: Element) => {
+    const rect = trigger.getBoundingClientRect();
+    const tooltipWidth = globalTooltip.offsetWidth;
+    const tooltipHeight = globalTooltip.offsetHeight;
+    const padding = 12;
+
+    // Horizontal: Center under the icon
+    let left = rect.left + rect.width / 2 - tooltipWidth / 2;
+    left = Math.max(padding, Math.min(left, window.innerWidth - tooltipWidth - padding));
+
+    // Vertical: Below the icon by default
+    let top = rect.bottom + 8;
+    if (top + tooltipHeight > window.innerHeight - padding) {
+        top = rect.top - tooltipHeight - 8;
+        globalTooltip.classList.add('tooltip-above');
+    } else {
+        globalTooltip.classList.remove('tooltip-above');
+    }
+
+    globalTooltip.style.left = `${left}px`;
+    globalTooltip.style.top = `${top}px`;
+};
+
+const showTooltip = (trigger: Element) => {
+    const text = trigger.getAttribute('data-tooltip');
+    if (!text) return;
+
+    // Clear any pending hide
+    if (tooltipHideTimeout) {
+        clearTimeout(tooltipHideTimeout);
+        tooltipHideTimeout = null;
+    }
+
+    globalTooltip.innerHTML = text;
+    globalTooltip.style.display = 'block';
+    positionTooltip(trigger);
+};
+
+const maybeHideTooltip = () => {
+    // Only hide if mouse is not over icon AND not over tooltip
+    if (!isOverIcon && !isOverTooltip) {
+        tooltipHideTimeout = setTimeout(() => {
+            globalTooltip.style.display = 'none';
+        }, 300); // Increased delay for crossing gap
+    }
+};
+
+// Icon hover events (using capture phase for reliability)
+document.body.addEventListener('mouseenter', (e) => {
+    const target = (e.target as HTMLElement).closest('[data-tooltip]');
+    if (target) {
+        isOverIcon = true;
+        if (tooltipHideTimeout) {
+            clearTimeout(tooltipHideTimeout);
+            tooltipHideTimeout = null;
+        }
+        showTooltip(target);
+    }
+}, true);
+
+document.body.addEventListener('mouseleave', (e) => {
+    const target = (e.target as HTMLElement).closest('[data-tooltip]');
+    if (target) {
+        isOverIcon = false;
+        maybeHideTooltip();
+    }
+}, true);
+
+// Tooltip hover events
+globalTooltip.addEventListener('mouseenter', () => {
+    isOverTooltip = true;
+    if (tooltipHideTimeout) {
+        clearTimeout(tooltipHideTimeout);
+        tooltipHideTimeout = null;
+    }
+});
+
+globalTooltip.addEventListener('mouseleave', () => {
+    isOverTooltip = false;
+    maybeHideTooltip();
+});
+
+// Handle link clicks inside tooltip (Figma sandbox blocks default navigation)
+globalTooltip.addEventListener('click', (e) => {
+    const link = (e.target as HTMLElement).closest('a');
+    if (link && link.href) {
+        e.preventDefault();
+        parent.postMessage({
+            pluginMessage: { type: 'OPEN_EXTERNAL_URL', url: link.href }
+        }, '*');
+        // Hide tooltip after clicking link
+        globalTooltip.style.display = 'none';
+        isOverTooltip = false;
+    }
+});
+// -----------------------------------------------------
 const anchorSwatchTrigger = document.getElementById('anchor-swatch-trigger');
 const container = getEl<HTMLElement>(DOM_IDS.STOPS_CONTAINER);
 const modalContainer = getEl<HTMLElement>('modal-container');
 
 // Component Containers
 const footerContainer = getEl<HTMLElement>('footer-actions-container');
-const modeTabsContainer = getEl<HTMLElement>('mode-tabs-container');
 const themeToggleBtn = getEl<HTMLElement>('theme-toggle');
 
 // Re-selectors for elements that are now inside components (handled via delegation or re-query)
@@ -214,22 +318,12 @@ function initializeSliders() {
 
 
 function getSwatches(): SwatchResult[] {
-    const swatches = getState().paletteMode === 'oklch'
-        ? generatePerceptualV2({
-            baseColor: getState().baseColor,
-            stops: getState().stops,
-            overrides: getState().overrides,
-            anchorStop: getState().anchorStop,
-            oklchHue: getState().oklchHue || 0,
-            oklchVividness: getState().oklchVividness || 0
-        })
-        : generateSwatches({
-            baseColor: getState().baseColor,
-            stops: getState().stops,
-            overrides: getState().overrides,
-            anchorStop: getState().anchorStop,
-            anchorTheme: 'light'
-        });
+    const swatches = generateOKLCHSwatches(
+        getState().oklchHue || 0,
+        getState().stops,
+        getState().oklchVividness !== undefined ? getState().oklchVividness : 1,
+        getState().overrides
+    );
 
     // Post-process with contrast against theme
     const bg = getContrastBackground(getState().theme);
@@ -246,21 +340,6 @@ function update() {
         s.lastSwatches = getSwatches();
         render(s.lastSwatches);
 
-        // Render Header Components (Only create once)
-        if (modeTabsContainer && !modeTabsContainer.hasChildNodes()) {
-            modeTabsContainer.appendChild(createSegmentController({
-                id: 'mode-switch',
-                options: [
-                    { id: 'oklch', label: 'Perceptual' },
-                    { id: 'legacy', label: 'Legacy' }
-                ],
-                activeId: s.paletteMode as string,
-                onChange: (id) => {
-                    s.paletteMode = id as any;
-                    update();
-                }
-            }));
-        }
 
 
 
@@ -295,14 +374,6 @@ function update() {
             }
         });
 
-        // RE-BIND TOOLTIP: Lucide replaces the i tag, so we must re-attach listeners
-        requestAnimationFrame(() => {
-            const newTooltipTrigger = document.getElementById('gen-mode-help');
-            if (newTooltipTrigger) {
-                newTooltipTrigger.onmouseenter = showTooltip;
-                newTooltipTrigger.onmouseleave = startHideTimeout;
-            }
-        });
         // Apply Multi-State Logic
         renderHeaderExpansion();
         applyUIState();
@@ -992,16 +1063,12 @@ function updateModalPreview() {
 
     // Get Original for comparison
     const tempState = { ...getState(), overrides: {} };
-    const baseSwatches = getState().paletteMode === 'oklch'
-        ? generatePerceptualV2({
-            baseColor: tempState.baseColor,
-            stops: tempState.stops,
-            overrides: {},
-            anchorStop: tempState.anchorStop,
-            oklchHue: tempState.oklchHue || 0,
-            oklchVividness: tempState.oklchVividness || 0
-        })
-        : generateSwatches(tempState);
+    const baseSwatches = generateOKLCHSwatches(
+        tempState.oklchHue || 0,
+        tempState.stops,
+        tempState.oklchVividness !== undefined ? tempState.oklchVividness : 1,
+        {} // No overrides for base comparison
+    );
     const original = getState().activeStop === 'seed'
         ? baseSwatches.find((x: SwatchResult) => x.isOriginal)
         : baseSwatches.find((s: SwatchResult) => s.stop === (typeof getState().activeStop === 'string' ? swatch.stop : getState().activeStop));
@@ -1292,6 +1359,34 @@ const handleCanvasClick = () => {
 
 getEl<HTMLButtonElement>('btn-canvas')?.addEventListener('click', handleCanvasClick);
 
+// GLOBAL FUNCTION EXPORTS FOR DYNAMIC FOOTER BUTTONS
+// These are called by onClick handlers in the createButton() calls within applyUIState()
+(window as any).exportToFigma = () => {
+    const state = computeUIState();
+    const isUpdate = state === 'edit';
+    const payload = getPayload(isUpdate);
+
+    if (!isUpdate) {
+        // Track the name we're about to create to auto-select it later
+        (window as any)._pendingPaletteSelection = payload.name;
+    }
+
+    // Config for Variables
+    payload.createVariables = true;
+    payload.createFrame = false;
+
+    parent.postMessage({
+        pluginMessage: {
+            type: 'EXPORT_TO_FIGMA',
+            payload: payload
+        }
+    }, '*');
+};
+
+(window as any).createSelectionOnCanvas = () => {
+    handleCanvasClick();
+};
+
 // 3. FOOTER: RESET HANDLER
 getEl<HTMLButtonElement>('btn-reset')?.addEventListener('click', () => {
     (window as any).resetPlugin(); // Use global helper if available or local resetPlugin
@@ -1406,15 +1501,16 @@ window.onmessage = (event) => {
             }
         }
 
-        // Auto-select first palette on boot REMOVED to defaulting to View Mode (State 2)
-        // if (!s.selectedPaletteId && s.detectedPalettes.length > 0 && !(window as any)._isCreatingManual) {
-        //    selectPalette(s.detectedPalettes[0].hueName);
-        // } else {
+        // Auto-select first palette on boot when palettes exist and nothing is selected
+        if (!s.selectedPaletteId && s.detectedPalettes.length > 0 && !(window as any)._isCreatingManual) {
+            selectPalette(s.detectedPalettes[0].hueName);
+            return; // selectPalette will call renderPaletteSidebar and update
+        }
+
         renderPaletteSidebar();
         update();
     }
 }
-
 
 /**
  * Renders the palette sidebar with detected palettes (V 0.0.80)
@@ -1458,12 +1554,17 @@ function renderPaletteSidebar() {
                 // Reset to defaults for a "New Palette" feel
                 oklchHue: 297,
                 oklchVividness: 1,
-                baseColor: '#9600FF'
+                baseColor: '#9600FF',
+                isHeaderExpanded: true // Enter creation mode with expanded header
             });
+
+            // Flag to prevent auto-selection from overriding creation mode
+            (window as any)._isCreatingManual = true;
 
             // Refresh UI
             update();
             initializeSliders();
+            renderHeaderExpansion();
             renderPaletteSidebar();
         }
     });
@@ -1651,6 +1752,7 @@ function selectPalette(hueName: string) {
     syncColorInputs('hex');
     update();
 
+    renderHeaderExpansion();
     renderPaletteSidebar();
 }
 
@@ -1850,73 +1952,7 @@ setThemeUI(getState().theme);
 
 // Reset handler removed (now in footer)
 
-// Global Tooltip Management - V 0.0.71 (Refined Persistence)
-const tooltipTrigger = document.getElementById('gen-mode-help');
-const globalTooltip = document.getElementById('global-tooltip');
-let tooltipHideTimeout: number | null = null;
-
-const showTooltip = () => {
-    if (!tooltipTrigger || !globalTooltip) return;
-    if (tooltipHideTimeout) {
-        clearTimeout(tooltipHideTimeout);
-        tooltipHideTimeout = null;
-    }
-
-    const rect = tooltipTrigger.getBoundingClientRect();
-    globalTooltip.style.display = 'block';
-
-    // Calculate dimensions
-    const tooltipWidth = 260; // Fixed in CSS
-    const padding = 16;
-
-    // Horizontal Positioning (Centered by default)
-    let left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
-
-    // Right Edge Detection
-    if (left + tooltipWidth > window.innerWidth - padding) {
-        left = window.innerWidth - tooltipWidth - padding;
-    }
-
-    // Left Edge Detection
-    if (left < padding) {
-        left = padding;
-    }
-
-    // Vertical Positioning (Above by default)
-    let top = rect.top - globalTooltip.offsetHeight - 12;
-
-    // Top Edge Detection (Flip to bottom if no space)
-    if (top < padding) {
-        top = rect.bottom + 12;
-    }
-
-    globalTooltip.style.left = `${left}px`;
-    globalTooltip.style.top = `${top}px`;
-
-    // Trigger opacity transition
-    requestAnimationFrame(() => {
-        globalTooltip.classList.add('active');
-    });
-};
-
-const startHideTimeout = () => {
-    if (!globalTooltip) return;
-    if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
-    tooltipHideTimeout = window.setTimeout(() => {
-        globalTooltip.classList.remove('active');
-        setTimeout(() => {
-            if (!globalTooltip.classList.contains('active')) {
-                globalTooltip.style.display = 'none';
-            }
-        }, 200);
-        tooltipHideTimeout = null;
-    }, 300); // 300ms persistence window
-};
-
-if (tooltipTrigger && globalTooltip) {
-
-    globalTooltip.onmouseleave = startHideTimeout;
-}
+// Leftover cleanup complete
 
 export function resetPlugin() {
     (window as any).resetPlugin = resetPlugin;
@@ -1991,10 +2027,14 @@ if (editPaletteToggle) {
 
         if (isExpanded) {
             // "Cancel" Action: Revert changes and collapse
-            // Optionally discard dirty changes
+            // Revert dirty changes if any
             if (s.isDirty && s.syncedState) {
                 StateManager.reset();
             }
+
+            // Clear creation flag
+            delete (window as any)._isCreatingManual;
+            delete (window as any)._creationSnapshot;
 
             // Clear selection to return to View mode (State 2)
             s.selectedPaletteId = null;
@@ -2002,9 +2042,19 @@ if (editPaletteToggle) {
             s.originalPaletteData = null;
             s.isDirty = false;
             s.isHeaderExpanded = false;
+
+            // Auto-select first palette if any exist (restore proper View mode)
+            if (s.detectedPalettes.length > 0) {
+                selectPalette(s.detectedPalettes[0].hueName);
+                return; // selectPalette handles the UI updates
+            }
         } else {
-            // "Edit" Action: Expand (but don't select anything yet)
+            // "Edit" Action: Expand and commit current state as baseline
             s.isHeaderExpanded = true;
+
+            // Commit current state as the "synced" baseline for dirty checking
+            // This ensures cancel can properly detect and revert changes
+            StateManager.commit();
         }
 
         renderHeaderExpansion();

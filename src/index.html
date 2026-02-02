@@ -97,23 +97,17 @@
       <!-- EXPANDABLE SETTINGS SECTION -->
       <div id="expandable-settings" class="expandable-container collapsed">
         <div class="expandable-wrapper">
-          <div class="color-tool" id="tool-generation">
-            <div class="color-tool__header">
-              <div class="tooltip-wrapper">
-                <span class="color-tool__label">Generation mode</span>
-                <i data-lucide="help-circle" id="gen-mode-help" class="icon-svg"
-                  style="width: 14px; height: 14px; color: var(--text-tertiary); cursor: help;"></i>
-              </div>
-            </div>
-            <div class="color-tool__body">
-              <div id="mode-tabs-container" style="flex: 1;"></div>
-            </div>
-          </div>
 
           <!-- Anchor Color Component -->
           <div class="color-tool" id="tool-anchor">
             <div class="color-tool__header">
-              <span class="color-tool__label">Anchor color</span>
+              <div class="tooltip-wrapper">
+                <span class="color-tool__label">Anchor color</span>
+                <span class="help-icon-wrapper"
+                  data-tooltip="This primary color acts as the <strong>seed</strong> for generating the palette. We map it to the <strong>500 stop</strong> for accessible contrast ratios. Inspired by <a href='https://medium.com/user-experience-design-1/my-struggle-with-colors-part-ii-ed71bff6302a' target='_blank'>Zain Adeel's method</a>.">
+                  <i data-lucide="help-circle" class="help-icon-svg"></i>
+                </span>
+              </div>
             </div>
             <div class="color-tool__body anchor-refined-body-v4">
               <!-- Hex + Edit Group (Pill Style) -->
@@ -145,7 +139,13 @@
           <div id="oklch-controls" style="display: contents;">
             <div class="color-tool" id="tool-hue">
               <div class="color-tool__header">
-                <span class="color-tool__label">Hue</span>
+                <div class="tooltip-wrapper">
+                  <span class="color-tool__label">Hue</span>
+                  <span class="help-icon-wrapper"
+                    data-tooltip="Rotates the <strong>Hue (H)</strong> angle (0-360°) of the OKLCH model. Because OKLCH is perceptually uniform, changing hue maintains perceived lightness and chroma, allowing you to explore different color families without breaking accessibility.">
+                    <i data-lucide="help-circle" class="help-icon-svg"></i>
+                  </span>
+                </div>
               </div>
               <div class="color-tool__body">
                 <div class="value-badge">
@@ -159,7 +159,13 @@
 
             <div class="color-tool" id="tool-vividness">
               <div class="color-tool__header">
-                <span class="color-tool__label">Vividness</span>
+                <div class="tooltip-wrapper">
+                  <span class="color-tool__label">Vividness</span>
+                  <span class="help-icon-wrapper"
+                    data-tooltip="Controls the <strong>Chroma (C)</strong> component of OKLCH. Lower values = pastel/muted; Higher values = vibrant. <a href='https://oklch.com' target='_blank'>Learn more about OKLCH</a>.">
+                    <i data-lucide="help-circle" class="help-icon-svg"></i>
+                  </span>
+                </div>
               </div>
               <div class="color-tool__body">
                 <div class="value-badge">

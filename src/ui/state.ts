@@ -22,7 +22,7 @@ export const INITIAL_STATE: UIState = {
     overrides: {},
     showOriginal: false,
     anchorStop: 500,
-    paletteMode: 'oklch',
+    paletteMode: 'oklch', // Fixed to OKLCH
     oklchHue: 297,
     oklchVividness: 1,
     theme: 'light',

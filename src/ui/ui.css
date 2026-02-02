@@ -2581,69 +2581,101 @@ body:not(.light-theme) .icon-btn-edit:hover {
   border-radius: 12px;
   /* Matching slider track fully rounded look */
 
-  /* --- COMPONENT: SEGMENT CONTROLLER (Mode Tabs) --- */
-  .mode-tabs {
-    position: relative;
-    display: flex;
-    background: var(--bg-subtle);
-    border-radius: 12px;
-    padding: 2px;
-    height: 34px;
-    width: 100%;
-    max-width: 180px;
-    /* Or fitting the parent */
-    user-select: none;
-    isolation: isolate;
-    /* Create stacking context for thumb */
-  }
+}
 
-  .mode-thumb {
-    position: absolute;
-    top: 2px;
-    bottom: 2px;
-    left: 2px;
-    background: white;
-    border-radius: 7px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), width 0.2s;
-    z-index: 1;
-    pointer-events: none;
-  }
+/* --- COMPONENT: INFO ICONS & TOOLTIPS --- */
+.help-icon-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  cursor: help;
+  color: var(--text-tertiary);
+  transition: color 0.2s;
+}
 
-  body:not(.light-theme) .mode-thumb {
-    background: #636366;
-    /* Apple dark mode segment style */
-  }
+.help-icon-wrapper:hover {
+  color: var(--text-primary);
+}
 
-  .mode-tab {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: none;
-    font-family: var(--font-family-base);
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-secondary);
-    cursor: pointer;
-    z-index: 2;
-    transition: color 0.15s;
-    padding: 0;
-    margin: 0;
-  }
+.help-icon-svg {
+  width: 14px;
+  height: 14px;
+}
 
-  .mode-tab.active {
-    color: var(--text-primary);
-    font-weight: 500;
-  }
+/* CSS Tooltip implementation on the wrapper */
+/* Replaced by JS Global Tooltip to avoid clipping */
 
-  body:not(.light-theme) .mode-tab.active {
-    color: white;
-  }
+.global-tooltip {
+  position: fixed;
+  background: #222;
+  color: white;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 280px;
+  z-index: 9999;
+  pointer-events: auto;
+  /* Allow interaction for links */
+  display: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  text-align: left;
+  white-space: normal;
+}
 
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  cursor: pointer;
+/* Link styling inside tooltip */
+.global-tooltip a {
+  color: #60a5fa;
+  /* Light blue */
+  text-decoration: underline;
+}
+
+.global-tooltip a:hover {
+  color: #93c5fd;
+}
+
+/* Arrow pointing UP (tooltip below icon) */
+.global-tooltip::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-bottom-color: #222;
+}
+
+/* Invisible hover bridge - extends upward to connect with icon */
+.global-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  height: 20px;
+  /* Bridge the gap between icon and tooltip */
+  background: transparent;
+}
+
+/* Arrow pointing DOWN (tooltip above icon) */
+.global-tooltip.tooltip-above::before {
+  bottom: auto;
+  top: 100%;
+  border-bottom-color: transparent;
+  border-top-color: #222;
+}
+
+/* Bridge for tooltip-above (extends downward) */
+.global-tooltip.tooltip-above::after {
+  bottom: auto;
+  top: 100%;
+}
+
+/* Optional interaction state */
+.help-icon-wrapper:active {
+  transform: scale(0.95);
 }
 
 .anchor-swatch-bg-pure {
