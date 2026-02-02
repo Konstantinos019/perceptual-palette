@@ -14,22 +14,26 @@
   --color-gray-800: #2C2C2C;
   --color-gray-900: #1E1E1E;
 
+  --color-button-secondary-bg: #E1E1E1;
+  --color-button-secondary-text: #3C3C3C;
+
   /* Typography */
   --font-family-base: 'Inter', system-ui, sans-serif;
   --font-family-brand: 'Outfit', sans-serif;
   --font-family-mono: 'IBM Plex Mono', monospace;
 
-  /* Spacing Scale */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
+  /* Spacing Scale (Reduced by ~1px) */
+  --space-1: 3px;
+  --space-2: 7px;
+  --space-3: 11px;
+  --space-4: 15px;
+  --space-5: 19px;
+  --space-6: 23px;
 
   /* Radius */
   --radius-sm: 8px;
   --radius-md: 12px;
+  --radius-btn: 21.5px;
   --radius-pill: 999px;
 
   /* --- 2. SEMANTICS (Light Theme Default) --- */
@@ -89,7 +93,8 @@ body {
   background: var(--bg-app);
   color: var(--text-primary);
   font-family: var(--font-family-base);
-  font-size: 13px;
+  font-size: 14px;
+  /* Updated Base Font */
   line-height: 1.4;
   height: 100vh;
   display: flex;
@@ -177,17 +182,530 @@ body:not(.light-theme) ::-webkit-scrollbar-thumb:hover {
   flex-direction: row !important;
 }
 
-.top-header {
+.top-header-container {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  position: relative;
+  /* Remove default border-bottom-transition as we use blocks now */
+}
+
+.header-main-block {
+  background: white;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  /* Changed from center to left-aligned */
+  gap: 12px;
+  padding: 12px 16px;
+  /* Figma: border only at bottom as separator */
+  border: none;
+  border-bottom: 0.768px solid #ececec;
+  border-radius: 18px 18px 0 0;
+  /* Both top corners rounded as requested */
+  position: relative;
+  box-sizing: border-box;
+  height: 56px;
+  min-height: 56px;
+  z-index: 2;
+  transition: border-radius 0.3s ease;
+}
+
+/* Round all corners when collapsed to complete the card illusion */
+.top-header-container.collapsed .header-main-block {
+  border-radius: 18px 18px 18px 18px;
+  border-bottom: none;
+}
+
+/* Header Mode Block - Theme Toggle Container */
+.header-mode-block {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  position: relative;
+}
+
+.mode-toggle-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 56px;
+  /* Match header-main-block exactly */
+  box-sizing: border-box;
+  padding: 12px 16px;
+  /* Align with header padding */
+  border-radius: 0;
+}
+
+.mode-switcher {
+  background: #f3f3f3;
+  border: 1px solid #ececec;
+  border-radius: 12px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.inverted-curve-stroke {
+  stroke: #ececec;
+}
+
+body:not(.light-theme) .inverted-curve-stroke {
+  stroke: #404040;
+}
+
+.mode-controller {
+  background: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  padding: 4px;
+  /* Figma: p-[4px] */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0px 0px 1.536px rgba(0, 0, 0, 0.11), 0px 2.303px 5.912px rgba(0, 0, 0, 0.12);
+  position: relative;
+  overflow: hidden;
+  transition: opacity 0.2s ease;
+}
+
+.mode-controller::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0px -0.768px 1.459px rgba(0, 0, 0, 0.08);
+  pointer-events: none;
+}
+
+.mode-controller .icon-svg {
+  width: 14px;
+  height: 14px;
+  color: black;
+}
+
+/* Dark mode overrides for theme toggle */
+body:not(.light-theme) .mode-switcher {
+  background: #3D3D3D;
+  border-color: #4D4D4D;
+}
+
+body:not(.light-theme) .mode-controller {
+  background: #636366;
+}
+
+body:not(.light-theme) .mode-controller .icon-svg {
+  color: white;
+}
+
+.inverted-curve {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  /* Align to bottom edge of header */
+  width: 18.75px;
+  /* Use precise SVG width */
+  height: 18.75px;
+  color: white;
+  /* SVG fill uses currentColor */
+  z-index: 5;
+  pointer-events: none;
+}
+
+.inverted-curve svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Dark Mode Overrides for Magic Header */
+body:not(.light-theme) .header-main-block {
+  background: #2C2C2C;
+  border-color: #3D3D3D;
+}
+
+body:not(.light-theme) .inverted-curve {
+  color: #2C2C2C;
+  /* SVG fill uses currentColor */
+}
+
+
+.expandable-container {
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, padding 0.3s ease, transform 0.3s ease;
+  max-height: 1000px;
+  opacity: 1;
+  transform-origin: top;
+  /* Solid background for mode-block effect */
+  background: var(--bg-card);
+  border: none;
+  border-radius: 0;
+  /* Removed rounding as status-row provides bottom corners */
+}
+
+.expandable-container.collapsed {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  pointer-events: none;
+  transform: scaleY(0.95);
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-btn {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: #FFFFFF;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 13px;
+  font-weight: 500;
+  width: auto;
+  /* Dynamic width for text */
+}
+
+.header-btn:hover {
+  background: var(--bg-subtle);
+  border-color: var(--border-hover);
+}
+
+body:not(.light-theme) .header-btn {
+  background: #3D3D3D;
+  border-color: #4D4D4D;
+}
+
+body:not(.light-theme) .header-btn:hover {
+  background: #4D4D4D;
+}
+
+body:not(.light-theme) .header-btn:hover {
+  background: #333;
+  border-color: #444;
+}
+
+/* Header Edit/Cancel Button - Exact Figma Match */
+.header-edit-btn {
+  background: #FFFFFF;
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  height: 32px;
+  padding: 4px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: inset 0px -0.768px 1.459px rgba(0, 0, 0, 0.08);
+  font-family: var(--font-family-base);
+  font-weight: 500;
+  font-size: 12px;
+  color: #3c3c3c;
+}
+
+.header-edit-btn:hover {
+  background: var(--bg-subtle);
+  border-color: #d0d0d0;
+}
+
+/* Dark mode for header edit button */
+body:not(.light-theme) .header-edit-btn {
+  background: #3D3D3D;
+  border-color: #4D4D4D;
+  color: #E2E2E2;
+  box-shadow: inset 0px -0.768px 1.459px rgba(0, 0, 0, 0.15);
+}
+
+body:not(.light-theme) .header-edit-btn:hover {
+  background: #4D4D4D;
+  border-color: #5D5D5D;
+}
+
+.header-edit-btn .icon-svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* CSS State Overrides for Strict Visibility */
+
+/* Default Button State Logic (Fallback) */
+.btn-text-edit,
+.btn-icon-edit {
+  display: inline;
+}
+
+.btn-text-cancel,
+.btn-icon-cancel {
+  display: none;
+}
+
+/* State 1: create-no-tokens (Fresh) */
+[data-header-state="create-no-tokens"] .header-edit-btn {
+  display: none !important;
+}
+
+[data-header-state="create-no-tokens"] #palette-sidebar {
+  display: none !important;
+}
+
+[data-header-state="create-no-tokens"] #status-row {
+  display: flex !important;
+}
+
+/* State 2: default (View Mode) */
+[data-header-state="default"] .btn-text-edit,
+[data-header-state="default"] .btn-icon-edit {
+  display: inline !important;
+}
+
+[data-header-state="default"] .btn-text-cancel,
+[data-header-state="default"] .btn-icon-cancel {
+  display: none !important;
+}
+
+[data-header-state="default"] #status-row {
+  display: none !important;
+}
+
+/* Ensure Expandable is collapsed */
+[data-header-state="default"] .expandable-container {
+  display: none;
+}
+
+/* State 3: edit (Edit Mode) & State 4: create-with-tokens */
+[data-header-state="edit"] .btn-text-edit,
+[data-header-state="edit"] .btn-icon-edit,
+[data-header-state="create-with-tokens"] .btn-text-edit,
+[data-header-state="create-with-tokens"] .btn-icon-edit {
+  display: none !important;
+}
+
+[data-header-state="edit"] .btn-text-cancel,
+[data-header-state="edit"] .btn-icon-cancel,
+[data-header-state="create-with-tokens"] .btn-text-cancel,
+[data-header-state="create-with-tokens"] .btn-icon-cancel {
+  display: inline !important;
+}
+
+[data-header-state="edit"] #status-row,
+[data-header-state="create-with-tokens"] #status-row,
+[data-header-state="create-no-tokens"] #status-row {
+  display: flex !important;
+}
+
+/* Status Row - Bottom of Settings Card */
+.status-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 14px;
   padding: 16px;
-  gap: 20px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-card);
+  background: white;
+  /* No border-top here to avoid double-border with previous .color-tool */
+  border: none;
+  border-radius: 0 0 18px 18px;
+}
+
+body:not(.light-theme) .status-row {
+  background: #2C2C2C;
+  border-top-color: #404040;
+}
+
+.status-row .color-tool__header {
+  flex: 1;
+}
+
+.status-row .color-tool__body {
+  flex: 0 0 auto;
+}
+
+.status-name-wrapper {
+  background: #F3F3F3;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  height: 32px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   flex-shrink: 0;
-  width: 100%;
-  box-sizing: border-box;
+}
+
+.status-color-dot {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  border-radius: 8px;
+  border: 0.768px solid #ececec;
+  background: #7f34ff;
+  flex-shrink: 0;
+}
+
+.status-name-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font-family-base);
+  font-weight: 500;
+  font-size: 12px;
+  color: #3c3c3c;
+  width: 50px;
+  text-align: center;
+}
+
+.status-name-input:focus {
+  outline: none;
+}
+
+/* Dark mode status row */
+body:not(.light-theme) .status-name-wrapper {
+  background: #3D3D3D;
+  border-color: #4D4D4D;
+}
+
+body:not(.light-theme) .status-name-input {
+  color: #E2E2E2;
+}
+
+body:not(.light-theme) .status-color-dot {
+  border-color: #4D4D4D;
+}
+
+/* ============================================
+   HEADER STATE VISIBILITY RULES
+   ============================================
+   States:
+   - create-no-tokens: No palettes in file, must create
+   - default: Has tokens, collapsed view
+   - edit: Editing existing palette
+   - create-with-tokens: Creating new while tokens exist
+   ============================================ */
+
+/* State: create-no-tokens - No Edit/Cancel button, always expanded */
+[data-header-state="create-no-tokens"] .header-edit-btn {
+  display: none;
+}
+
+[data-header-state="create-no-tokens"] #palette-sidebar {
+  display: none;
+}
+
+[data-header-state="create-no-tokens"] #status-label::after {
+  content: none;
+}
+
+/* State: default - Collapsed, show Edit button, hide status row */
+[data-header-state="default"] .expandable-container {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+[data-header-state="default"] #status-row {
+  display: none;
+}
+
+[data-header-state="default"] .btn-text-cancel,
+[data-header-state="default"] .btn-icon-cancel {
+  display: none;
+}
+
+[data-header-state="default"] .btn-text-edit,
+[data-header-state="default"] .btn-icon-edit {
+  display: inline;
+}
+
+/* State: edit - Show Cancel button, show "Editing palette:" */
+[data-header-state="edit"] .btn-text-edit,
+[data-header-state="edit"] .btn-icon-edit {
+  display: none;
+}
+
+[data-header-state="edit"] .btn-text-cancel,
+[data-header-state="edit"] .btn-icon-cancel {
+  display: inline;
+}
+
+[data-header-state="edit"] #palette-sidebar {
+  display: none;
+}
+
+/* State: create-with-tokens - Show Cancel, show "Creating new palette" */
+[data-header-state="create-with-tokens"] .btn-text-edit,
+[data-header-state="create-with-tokens"] .btn-icon-edit {
+  display: none;
+}
+
+[data-header-state="create-with-tokens"] .btn-text-cancel,
+[data-header-state="create-with-tokens"] .btn-icon-cancel {
+  display: inline;
+}
+
+[data-header-state="create-with-tokens"] #palette-sidebar {
+  display: block;
+}
+
+
+.reset-btn {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reset-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
+/* Optional: Red tint on hover to signify destructive/revert action */
+.reset-btn:hover {
+  background: #fff1f2;
+  color: #e11d48;
+  border-color: #ffcccc;
+}
+
+body:not(.light-theme) .reset-btn:hover {
+  background: #380d15;
+  color: #fb7185;
+  border-color: #5c1825;
+}
+
+#header-edit-icon {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.collapsed #header-edit-icon {
+  transform: none;
 }
 
 /* Main Content Wrapper */
@@ -206,14 +724,17 @@ body:not(.light-theme) ::-webkit-scrollbar-thumb:hover {
 }
 
 .brand-title-text {
-  font-family: 'IBM Plex Sans', var(--font-family-base);
-  font-weight: 600;
-  font-size: 18px;
-  color: var(--text-primary);
-  letter-spacing: -0.04em;
+  font-family: var(--font-family-brand), 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: #000000;
+  letter-spacing: -0.02em;
   background: none;
   -webkit-text-fill-color: initial;
-  width: fit-content;
+}
+
+body:not(.light-theme) .brand-title-text {
+  color: #FFFFFF;
 }
 
 .header-title-group {
@@ -404,8 +925,7 @@ body:not(.light-theme) .smart-switch.active {
 }
 
 .brand-title {
-  font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--accent-primary);
   /* Green or Blue per theme */
   /* Design shows Neon Green/Purple gradient text? Or solid? */
@@ -418,15 +938,17 @@ body:not(.light-theme) .smart-switch.active {
 
 /* Section Card Utility (Unified Design V 0.0.46) */
 .section-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 20px;
-  /* Precise Figma Radius */
-  box-shadow: var(--shadow-md);
-  overflow: hidden;
+  border: none;
+  border-radius: 18px;
+  /* Use filter: drop-shadow to support transparency (e.g. inverted curves) */
+  filter: drop-shadow(0px 1.536px 12.284px rgba(0, 0, 0, 0.08));
+  overflow: visible;
+  /* Allow mode-block or inverted curves to overflow if needed */
   display: flex;
   flex-direction: column;
   width: 100%;
+  background: transparent;
+  /* Background on individual blocks */
 }
 
 /* Settings Card */
@@ -525,29 +1047,25 @@ body:not(.light-theme) .label-sm {
 
 /* Mode Tabs */
 .mode-tabs {
-  background: #F3F3F3;
+  background: #f3f3f3;
   padding: 4px;
-  /* Match smart-switch V 0.0.74 */
-  border-radius: 12px;
-  /* Match smart-switch */
+  border-radius: 12.284px;
   display: flex;
   position: relative;
   width: 100%;
-  max-width: 180px;
-  /* Balance width V 0.0.77 */
+  max-width: 223.5px;
   flex-shrink: 1;
-  /* Support small screens */
   user-select: none;
-  border: 1px solid rgba(0, 0, 0, 0.04);
-  height: 34px;
-  /* Match smart-switch height */
+  border: 0.768px solid #ececec;
+  height: 32px;
   box-sizing: border-box;
+  align-items: center;
 }
 
 /* Dark Mode Track */
 body:not(.light-theme) .mode-tabs {
   background: #252525;
-  border-color: transparent;
+  border-color: #3d3d3d;
 }
 
 .mode-thumb {
@@ -555,21 +1073,27 @@ body:not(.light-theme) .mode-tabs {
   top: 4px;
   left: 4px;
   height: 24px;
-  /* Match smart-switch thumb height */
   width: calc(50% - 4px);
   background: #FFFFFF;
   border-radius: 8px;
-  /* Match smart-switch__thumb radius */
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.1);
-  transition: transform 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+  box-shadow: 0px 0px 1.536px 0px rgba(0, 0, 0, 0.11), 0px 2.303px 5.912px 0px rgba(0, 0, 0, 0.12);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
-  z-index: 0;
+  z-index: 1;
+}
+
+.mode-thumb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0px -0.768px 1.459px 0px rgba(0, 0, 0, 0.08);
 }
 
 /* Dark Mode Thumb */
 body:not(.light-theme) .mode-thumb {
   background: #3D3D3D;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .mode-tab {
@@ -579,24 +1103,26 @@ body:not(.light-theme) .mode-thumb {
   background: none;
   padding: 0 4px;
   height: 24px;
-  /* Content height as requested */
   font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary);
+  font-weight: 400;
+  color: #6d6d6d;
   cursor: pointer;
-  border-radius: 99px;
-  transition: color 0.2s;
+  transition: color 0.2s, font-weight 0.2s;
   text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
 .mode-tab.active {
-  color: var(--text-primary);
-  font-weight: 600;
+  color: #3c3c3c;
+  font-weight: 500;
+}
+
+body:not(.light-theme) .mode-tab.active {
+  color: #FFFFFF;
 }
 
 
@@ -609,16 +1135,57 @@ body:not(.light-theme) .mode-thumb {
   justify-content: space-between;
   padding: 12px 16px;
   width: 100%;
+  box-sizing: border-box;
   position: relative;
+  background: white;
+  border-bottom: 0.768px solid #ececec;
+  /* Force all internal rows to have NO rounding by default */
+  border-radius: 0 !important;
+}
+
+/* Explicit rounding only for the boundaries of the settings card */
+
+/* 1. Top rounding for the first row (Generation Mode) */
+#tool-generation {
+  border-radius: 18px 18px 0 0 !important;
+}
+
+/* 2. Bottom rounding for the status row (last visible row) */
+/* This is already handled by .status-row if it has the class, but we'll be safer */
+.status-row,
+#status-row {
+  border-radius: 0 0 18px 18px !important;
+  border-bottom: none !important;
+}
+
+/* 3. Ensure intermediate rows (Hue, Vividness, Anchor) are squared */
+#tool-anchor,
+#tool-hue,
+#tool-vividness {
+  border-radius: 0 !important;
+}
+
+/* 4. Fix for Vividness row bottom-border overlap if it's the last in its container but not the card */
+#tool-vividness {
   border-bottom: 1px solid #ececec;
+  /* Ensure it keeps its separator */
+}
+
+body:not(.light-theme) #tool-vividness {
+  border-bottom-color: #404040;
 }
 
 body:not(.light-theme) .color-tool {
+  background: #2C2C2C;
   border-bottom-color: #404040;
 }
 
 .color-tool__header {
-  flex: 1 0 0;
+  flex: 1;
+  /* Organic 50% split */
+  min-width: 0;
+  display: flex;
+  align-items: center;
 }
 
 .color-tool__label {
@@ -690,14 +1257,21 @@ body:not(.light-theme) .color-tool__label {
   align-items: center;
   gap: 12px;
   flex: 1;
+  /* Organic 50% split */
   justify-content: flex-end;
+  /* Align contents to the right */
+  min-width: 0;
+  /* Allow shrinking for overflow V 1.0.2 */
 }
 
 .anchor-refined-body-v4 {
-  gap: 6px !important;
+  gap: 12px !important;
   display: flex;
   align-items: center;
-  width: 100%;
+  justify-content: flex-end;
+  /* Explicitly align right */
+  width: auto;
+  /* Let flex handle width */
 }
 
 .anchor-hex-group {
@@ -1171,6 +1745,12 @@ body:not(.light-theme) {
   flex-shrink: 0;
 }
 
+.figma-img {
+  height: 20px;
+  width: auto;
+  display: block;
+}
+
 .btn:active {
   transform: scale(0.98);
 }
@@ -1349,6 +1929,13 @@ body:not(.light-theme) .btn--secondary-filled:hover {
 .palette-container {
   flex: 1;
   min-height: 0;
+  background: var(--bg-card);
+  border: none;
+  border-radius: 18px;
+  /* Use filter: drop-shadow to support transparency */
+  filter: drop-shadow(0px 1.536px 12.284px rgba(0, 0, 0, 0.08));
+  overflow: hidden;
+  margin-top: 16px;
 }
 
 .palette-list {
@@ -1372,7 +1959,7 @@ body:not(.light-theme) .palette-container {
   grid-template-columns: repeat(3, 1fr);
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid #ececec;
+  border-bottom: 0.768px solid #ececec;
   background: var(--bg-card);
 }
 
@@ -1644,12 +2231,144 @@ body:not(.light-theme) .list-row__cell {
 .plugin-footer {
   flex-shrink: 0;
   padding: 16px;
+  margin-top: 16px;
+  /* Floating look */
   gap: 12px;
   position: relative;
+  background: white;
+  border: none;
+  border-radius: 18px;
+  /* Both top and bottom rounded per Design */
+  /* Use filter: drop-shadow to support transparency */
+  filter: drop-shadow(0px 1.536px 12.284px rgba(0, 0, 0, 0.08));
+  z-index: 100;
 }
 
 .footer-row {
-  width: 100%;
+  display: none;
+  /* Hidden by default */
+  gap: 8px;
+  align-items: center;
+}
+
+.footer-row.footer-state-active {
+  display: flex;
+}
+
+.btn--secondary-pill {
+  background: var(--color-button-secondary-bg);
+  color: var(--color-button-secondary-text);
+  border: none;
+  height: 44px;
+  border-radius: var(--radius-btn);
+  padding: 0 12px;
+  font-weight: 500;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex: 1;
+}
+
+.btn--secondary-pill:hover:not(:disabled) {
+  background: #EBEBEB;
+}
+
+.btn--primary-pill {
+  background: #000000;
+  color: #FFFFFF;
+  border: none;
+  height: 44px;
+  border-radius: var(--radius-btn);
+  padding: 0 12px;
+  font-weight: 500;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  flex: 1;
+}
+
+.btn--primary-pill:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.btn--primary-pill:disabled {
+  background: #000000 !important;
+  color: #FFFFFF !important;
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn--secondary-circle {
+  background: #F2F2F2;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.btn--secondary-circle:hover:not(:disabled) {
+  background: #EBEBEB;
+}
+
+.btn--secondary-circle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+body:not(.light-theme) .plugin-footer,
+body:not(.light-theme) .btn--secondary-pill,
+body:not(.light-theme) .btn--secondary-circle {
+  background: #2C2C2C;
+  color: #FFFFFF;
+}
+
+body:not(.light-theme) .btn--secondary-pill:hover,
+body:not(.light-theme) .btn--secondary-circle:hover {
+  background: #3D3D3D;
+}
+
+.btn--ghost-circle {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  width: 44px;
+  /* Matching height of pillows */
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  color: var(--text-primary);
+}
+
+.btn--ghost-circle:hover {
+  background: var(--bg-subtle);
+  border-color: #d0d0d0;
+}
+
+body:not(.light-theme) .btn--ghost-circle {
+  border-color: #404040;
+  color: #fff;
+}
+
+body:not(.light-theme) .btn--ghost-circle:hover {
+  background: #2a2a2a;
 }
 
 .footer-info {
@@ -1679,12 +2398,45 @@ body:not(.light-theme) .list-row__cell {
 }
 
 .palette-sidebar {
+  display: flex !important;
+  width: 100%;
+  border-bottom: 0.768px solid #ececec;
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+}
+
+body:not(.light-theme) .palette-sidebar {
+  border-color: #333;
+}
+
+.btn-cancel-creation {
+  padding: 6px 12px;
+  background: white;
+  border: 0.768px solid #ececec;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  color: #000;
+  cursor: pointer;
+  transition: all 0.2s;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
   align-items: center;
-  padding: 0;
-  flex-shrink: 0;
+  justify-content: center;
+}
+
+.btn-cancel-creation:hover {
+  background: #f5f5f5;
+  border-color: #d0d0d0;
+}
+
+body:not(.light-theme) .btn-cancel-creation {
+  background: #1e1e1e;
+  border-color: #333;
+  color: #fff;
+}
+
+body:not(.light-theme) .btn-cancel-creation:hover {
+  background: #2a2a2a;
 }
 
 
@@ -1704,6 +2456,158 @@ body:not(.light-theme) .list-row__cell {
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+}
+
+/* Anchor Pill & Edit Styles (V 1.1) */
+/* Anchor Input Pill (V 1.2) */
+/* Anchor Wrapper (Gray Pill Container) V 1.3 */
+.anchor-hex-wrapper {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  /* Matching .value-badge */
+  height: 32px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px 0 12px;
+  gap: 8px;
+  transition: background 0.2s;
+  /* Fixed width matching design roughly */
+  min-width: 100px;
+}
+
+.anchor-hex-wrapper:focus-within {
+  background: var(--bg-card-hover);
+  /* Slightly darker on focus interaction */
+  outline: 1px solid var(--border-subtle);
+}
+
+/* The actual text input - invisible background */
+.anchor-hex-input-native {
+  background: transparent;
+  border: none;
+  font-family: var(--font-family-mono);
+  font-size: 13px;
+  color: var(--text-primary);
+  width: 60px;
+  /* Enough for #RRGGBB */
+  outline: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* The icon on the right */
+.anchor-hex-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  /* Maybe allowing click behavior */
+}
+
+.anchor-hex-icon:hover {
+  color: var(--text-primary);
+}
+
+.icon-btn-edit {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  /* Circle */
+  background: var(--bg-subtle);
+  border: none;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.icon-btn-edit:hover {
+  background: #e5e5e5;
+}
+
+body:not(.light-theme) .icon-btn-edit:hover {
+  background: #333;
+}
+
+.anchor-swatch-card {
+  flex: 1;
+  /* Take remaining space */
+  height: 32px;
+  border-radius: 12px;
+  /* Matching slider track fully rounded look */
+
+  /* --- COMPONENT: SEGMENT CONTROLLER (Mode Tabs) --- */
+  .mode-tabs {
+    position: relative;
+    display: flex;
+    background: var(--bg-subtle);
+    border-radius: 9px;
+    padding: 2px;
+    height: 32px;
+    width: 100%;
+    max-width: 220px;
+    /* Or fitting the parent */
+    user-select: none;
+    isolation: isolate;
+    /* Create stacking context for thumb */
+  }
+
+  .mode-thumb {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    left: 2px;
+    background: white;
+    border-radius: 7px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), width 0.2s;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  body:not(.light-theme) .mode-thumb {
+    background: #636366;
+    /* Apple dark mode segment style */
+  }
+
+  .mode-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    font-family: var(--font-family-base);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    z-index: 2;
+    transition: color 0.15s;
+    padding: 0;
+    margin: 0;
+  }
+
+  .mode-tab.active {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  body:not(.light-theme) .mode-tab.active {
+    color: white;
+  }
+
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+}
+
+.anchor-swatch-bg-pure {
+  width: 100%;
+  height: 100%;
 }
 
 .btn-secondary:hover {
@@ -1736,53 +2640,80 @@ body:not(.light-theme) .list-row__cell {
 
 .palette-pills {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 8px;
   align-items: center;
+  overflow-x: auto;
+  flex: 1;
+  justify-content: flex-end;
+  /* Align swatches to the right (next to + button) */
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE 10+ */
+  padding: 4px 0;
+  /* Vertical space for active ring scale */
+}
+
+.palette-pills::-webkit-scrollbar {
+  display: none;
+  /* Chrome/Safari */
 }
 
 .palette-pill {
-  width: 24px;
-  height: 24px;
-  border-radius: 12px;
-  border: 1px solid #ececec;
-  background: #888888;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 0.768px solid #ececec;
+  background: transparent;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
+  position: relative;
+  flex-shrink: 0;
 }
 
 .palette-pill:hover {
   transform: scale(1.1);
 }
 
-.palette-pill--active {
-  width: 32px;
-  height: 32px;
-  border-radius: 12px;
-  border-width: 2px;
+/* Active State: Wrapped in a ring */
+.palette-pill-ring {
+  border: 1px solid transparent;
+  padding: 3px;
+  border-radius: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.palette-pill--active-ring {
   border-color: var(--text-primary);
 }
 
 .palette-pill--add {
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
   background: #e3e3e3;
   color: #000;
+  border: none;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  line-height: 1;
 }
 
 body:not(.light-theme) .palette-pill--add {
   background: #3d3d3d;
   color: #fff;
-}
-
-body:not(.light-theme) .palette-pill {
-  border-color: #404040;
-}
-
-body:not(.light-theme) .palette-pill--active {
-  border-color: #fff;
 }
 
 /* --- REFINE MODAL (V 0.0.80 Pixel Perfect) --- */
@@ -2117,4 +3048,17 @@ body:not(.light-theme) .btn-pill-secondary {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Figma Logo Theme Toggle */
+.figma-logo-dark {
+  display: none;
+}
+
+body:not(.light-theme) .figma-logo-dark {
+  display: block;
+}
+
+body:not(.light-theme) .figma-logo-light {
+  display: none;
 }

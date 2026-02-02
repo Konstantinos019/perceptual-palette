@@ -7,7 +7,7 @@ export default defineConfig({
     build: {
         target: 'es6',
         lib: {
-            entry: './src/code.ts',
+            entry: './src/core/figma/code.ts',
             name: 'code',
             formats: ['iife'],
             fileName: () => 'code.js'

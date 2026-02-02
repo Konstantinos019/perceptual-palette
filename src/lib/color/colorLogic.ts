@@ -1,6 +1,6 @@
 import { oklch, wcagContrast, formatHex, inGamut, hsl, rgb, lch, hsv } from 'culori';
 export { wcagContrast, hsl, rgb, lch, oklch, formatHex, hsv }; // Export for UI usage
-import type { PaletteConfig, SwatchResult } from './types';
+import type { PaletteConfig, SwatchResult } from '../tokens/types';
 
 // ============================================================================
 // OKLCH PERCEPTUALLY UNIFORM PALETTE GENERATION (Experimental)

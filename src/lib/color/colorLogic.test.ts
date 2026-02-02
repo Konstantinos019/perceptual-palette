@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateSwatches, formatColumnValue } from './colorLogic';
-import type { PaletteConfig } from './types';
+import type { PaletteConfig } from '../tokens/types';
 
 describe('Perceptual Palette Color Logic', () => {
     it('should generate a valid palette structure', () => {

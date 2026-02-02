@@ -1,0 +1,32 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.17 [39m[90m/Users/kdimitropoulos/Documents/GitHub/perceptual-palette/src[39m
+
+[90mstdout[2m | lib/color/perceptual_v2.test.ts[2m > [22m[2mPerceptual V2 Algorithm[2m > [22m[2mshould maintain consistent contrast steps (~1.35:1)
+[22m[39mStop 100 to 200: Contrast 1.000
+
+ [31m❯[39m lib/color/perceptual_v2.test.ts [2m([22m[2m4 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 7[2mms[22m[39m
+     [32m✓[39m should generate the correct number of stops[32m 2[2mms[22m[39m
+[31m     [31m×[31m should maintain consistent contrast steps (~1.35:1)[39m[32m 3[2mms[22m[39m
+     [32m✓[39m should correctly mark the anchor stop[32m 0[2mms[22m[39m
+     [32m✓[39m should produce valid OKLCH output[32m 1[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m lib/color/perceptual_v2.test.ts[2m > [22mPerceptual V2 Algorithm[2m > [22mshould maintain consistent contrast steps (~1.35:1)
+[31m[1mAssertionError[22m: expected 1 to be greater than 1.25[39m
+[36m [2m❯[22m lib/color/perceptual_v2.test.ts:[2m24:30[22m[39m
+    [90m 22| [39m            console.log(`Stop ${swatches[i].stop} to ${swatches[i + 1]…
+    [90m 23| [39m            [90m// Check contrast with next. Expect close to 1.35.[39m
+    [90m 24| [39m            [34mexpect[39m(contrast)[33m.[39m[34mtoBeGreaterThan[39m([34m1.25[39m)[33m;[39m
+    [90m   | [39m                             [31m^[39m
+    [90m 25| [39m            [34mexpect[39m(contrast)[33m.[39m[34mtoBeLessThan[39m([34m1.45[39m)[33m;[39m
+    [90m 26| [39m        }
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m3 passed[39m[22m[90m (4)[39m
+[2m   Start at [22m 13:12:56
+[2m   Duration [22m 182ms[2m (transform 37ms, setup 0ms, import 83ms, tests 7ms, environment 0ms)[22m
+

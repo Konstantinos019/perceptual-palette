@@ -1,6 +1,6 @@
 /// <reference types="@figma/plugin-typings" />
-import type { FigmaExportPayload } from './types';
-import { figmaRgbToHex } from './colorLogic';
+import type { FigmaExportPayload } from '../../lib/tokens/types';
+import { figmaRgbToHex } from '../../lib/color/colorLogic';
 
 figma.showUI(__html__, { width: 525, height: 900, themeColors: true });
 
@@ -20,6 +20,14 @@ function syncSelectionOnLaunch() {
     }
 }
 syncSelectionOnLaunch();
+sendPalettesToUI(); // V 0.0.95: Auto-sync on launch
+
+figma.on('selectionchange', () => {
+    // Only auto-sync base color if user is in "Creation" mode (no selection)
+    // To avoid overwriting a palette's anchor while editing.
+    // However, for now, let's just re-sync palettes if needed
+    sendPalettesToUI();
+});
 
 figma.ui.onmessage = async (msg) => {
     if (msg.type === 'CLOSE_PLUGIN') {
@@ -88,19 +96,25 @@ figma.ui.onmessage = async (msg) => {
             try {
                 // Modified: Case insensitive match for creating/finding collection
                 const collectionName = "[primitive] colors";
-                console.log("Debug: Fetching collections...");
                 const collections = await figma.variables.getLocalVariableCollectionsAsync();
-                console.log("Debug: Found collections:", collections.map(c => c.name));
 
-                collection = collections.find(c => c.name.toLowerCase() === collectionName) || figma.variables.createVariableCollection(collectionName);
-                console.log("Debug: Target collection:", collection.id, collection.name);
+                // V 1.1.0: More robust collection discovery
+                collection = collections.find(c =>
+                    c.name.toLowerCase() === collectionName.toLowerCase() ||
+                    c.name.toLowerCase().includes("primitive")
+                ) || figma.variables.createVariableCollection(collectionName);
+
+                if (collection.modes.length === 0) {
+                    // Safety check for empty collections
+                    await (collection as any).addMode("Mode 1");
+                }
 
                 // Name collision check
-                const allVariables = await figma.variables.getLocalVariablesAsync('COLOR');
-                const existingVars = allVariables.filter(v => v.variableCollectionId === collection!.id);
+                const allVariablesInCollection = (await figma.variables.getLocalVariablesAsync('COLOR'))
+                    .filter(v => v.variableCollectionId === collection!.id);
 
                 let counter = 1;
-                while (existingVars.some(v => v.name.startsWith(`${varPaletteName}/`))) {
+                while (allVariablesInCollection.some(v => v.name.startsWith(`${varPaletteName}/`))) {
                     varPaletteName = `${baseColorName} ${counter}`;
                     counter++;
                 }
@@ -332,59 +346,77 @@ async function getPalettesData() {
         const paletteMap: Record<string, { hueName: string, stops: { stop: number, hex: string, variableId: string }[] }> = {};
 
         for (const variable of allVariables) {
-            // RELAXED FILTER: Look at ALL collections
-            // FLEXIBLE PARSING: Try '/', '-', ' '
-            let parts = variable.name.split('/');
-            let separator = '/';
+            console.log(`Deep Dive: Scanning ${variable.name} in collection ${variable.variableCollectionId}`);
 
-            // Try other separators if split failed
-            if (parts.length < 2) {
-                parts = variable.name.split('-');
-                separator = '-';
-            }
-            if (parts.length < 2) {
-                parts = variable.name.split(' ');
-                separator = ' ';
+            // V 1.1.0: Robust Naming Parser
+            // Matches: Group/Name/Stop, Group.Stop, Group_Stop, etc.
+            // Priority separators: / then . then _ then space
+            let parts: string[] = [];
+            let separator = '';
+
+            const separators = ['/', '.', '_', ' '];
+            for (const s of separators) {
+                if (variable.name.includes(s)) {
+                    parts = variable.name.split(s);
+                    separator = s;
+                    // Don't break yet if it's a slash, because we might have nested slashes
+                    if (s === '/') break;
+                }
             }
 
-            if (parts.length >= 2) {
+            // Fallback for no separator (standalone variable name)
+            if (parts.length === 0) {
+                parts = [variable.name];
+            }
+
+            if (parts.length >= 1) {
                 const stopStr = parts[parts.length - 1];
                 const stop = parseInt(stopStr, 10);
 
-                if (!isNaN(stop)) {
-                    let groupName = "";
+                // We now allow non-numeric stops, but we use a default sorting index
+                const stopVal = isNaN(stop) ? 500 : stop;
 
-                    if (separator === '/' && parts.length > 2) {
-                        // Standard structure: Collection/Group/Name -> Use "Group"
-                        groupName = parts[parts.length - 2];
-                    } else {
-                        // Flat (Slate-500) -> Use first part
-                        groupName = parts.slice(0, parts.length - 1).join(separator);
-                    }
+                // Group Name Logic: 
+                // If nested with '/', take everything except the last part as the group
+                // Otherwise take the first part
+                let groupName = "Default";
+                if (parts.length > 1) {
+                    groupName = parts.slice(0, parts.length - 1).join(separator === '/' ? '/' : ' ');
+                } else {
+                    // Standalone variable - uses the name as the group? 
+                    // No, let's treat standalone as part of a "Library" group or similar
+                    groupName = "Standalone";
+                }
 
-                    if (!paletteMap[groupName]) {
-                        paletteMap[groupName] = { hueName: groupName, stops: [] };
-                    }
+                if (!paletteMap[groupName]) {
+                    paletteMap[groupName] = { hueName: groupName, stops: [] };
+                }
 
-                    // FIX: Use Map lookup instead of deprecated synchronous API
-                    const collection = collectionMap.get(variable.variableCollectionId);
-                    if (collection && collection.modes.length > 0) {
-                        const modeId = collection.modes[0].modeId;
-                        const value = variable.valuesByMode[modeId];
+                const collection = collectionMap.get(variable.variableCollectionId);
+                if (collection && collection.modes.length > 0) {
+                    let rgb: RGB | null = null;
 
-                        // Pass map to recursive resolver
-                        const rgb = resolveColor(value, collectionMap);
+                    // V 0.0.96: Recursive Mode-Agnostic Resolve
+                    // We try to find a valid color across ALL modes
+                    for (const mode of collection.modes) {
+                        const value = variable.valuesByMode[mode.modeId];
+                        rgb = resolveColor(value, collectionMap);
                         if (rgb) {
-                            const hex = figmaRgbToHex(rgb);
-                            paletteMap[groupName].stops.push({ stop, hex, variableId: variable.id });
+                            console.log(`Deep Dive: Resolved ${variable.name} stop ${stopVal} via mode ${mode.name}`);
+                            break;
                         }
+                    }
+
+                    if (rgb) {
+                        const hex = figmaRgbToHex(rgb);
+                        paletteMap[groupName].stops.push({ stop: stopVal, hex, variableId: variable.id });
                     }
                 }
             }
         }
 
         const foundPalettes = Object.values(paletteMap);
-        console.log("Deep Dive: Resolved Palettes:", foundPalettes.length, foundPalettes.map(p => p.hueName));
+        console.log("Deep Dive: Scan Complete. Total Palettes Found:", foundPalettes.length);
 
         return foundPalettes.map(p => {
             p.stops.sort((a, b) => a.stop - b.stop);
@@ -417,16 +449,17 @@ function resolveColor(value: VariableValue, collectionMap: Map<string, VariableC
         if ('type' in value && value.type === 'VARIABLE_ALIAS') {
             const alias = value as VariableAlias;
 
-            // NOTE: figma.variables.getVariableById is synchronous. 
-            // If this also throws "documentAccess: dynamic-page" error, we will need to fetch ALL variables 
-            // and pass a variableMap too. But let's try this first as the error was specific to Collection.
             try {
                 const resolvedVar = figma.variables.getVariableById(alias.id);
                 if (resolvedVar) {
                     const collection = collectionMap.get(resolvedVar.variableCollectionId);
                     if (collection && collection.modes.length > 0) {
-                        const modeId = collection.modes[0].modeId;
-                        return resolveColor(resolvedVar.valuesByMode[modeId], collectionMap, depth + 1);
+                        // V 0.0.96: Recursive Mode-Agnostic Resolve
+                        for (const mode of collection.modes) {
+                            const val = resolvedVar.valuesByMode[mode.modeId];
+                            const rgb = resolveColor(val, collectionMap, depth + 1);
+                            if (rgb) return rgb;
+                        }
                     }
                 }
             } catch (e) {

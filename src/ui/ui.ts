@@ -1,5 +1,7 @@
-import { generateSwatches, generateOKLCHSwatches, wcagContrast, hsl, rgb, lch, hsv, hexToFigmaRgb, getColorName, oklch, formatHex, getContrastBackground, formatColumnValue } from './colorLogic';
-import { DOM_IDS, type PaletteConfig, type SwatchResult, type FigmaExportPayload, type DetectedPalette } from './types';
+import { generateSwatches, wcagContrast, hsl, rgb, lch, hsv, hexToFigmaRgb, getColorName, oklch, formatHex, getContrastBackground, formatColumnValue } from '../lib/color/colorLogic';
+import { generatePerceptualV2 } from '../lib/color/perceptual_v2';
+import { DOM_IDS, type SwatchResult, type FigmaExportPayload } from '../lib/tokens/types';
+import { StateManager } from './state';
 import {
     createIcons,
     RefreshCw,
@@ -18,48 +20,29 @@ import {
     Copy,
     Settings,
     MoreVertical,
-    GripVertical
+    GripVertical,
+    ChevronDown,
+    Pencil,
+    Globe
 } from 'lucide';
+import { createPaletteRow } from './components/PaletteRow';
+import { createPaletteSelector } from './components/PaletteSelector';
+import { createButton } from './components/Button';
 
-// State
-const STANDARD_STOPS = [100, 200, 300, 400, 500, 600, 700, 800, 900];
-const HUE_OFFSET = 0; // Slider 0 maps to OKLCH 0° (direct mapping)
+import { createSegmentController } from './components/SegmentController';
+import { createRefineModal } from './components/RefineModal';
 
-interface AppState extends PaletteConfig {
-    anchorStop: number;
-    paletteMode: 'legacy' | 'oklch';
-    oklchHue: number;
-    oklchVividness: number;
-    theme: 'dark' | 'light';
-}
+// Declare global for Vite define
+declare const APP_VERSION: string;
 
-const INITIAL_STATE: AppState = {
-    baseColor: '#9600FF',
-    stops: [...STANDARD_STOPS], // Standard 100-900
-    overrides: {},
-    showOriginal: false,
-    anchorStop: 500,
-    paletteMode: 'oklch',
-    oklchHue: 297,
-    oklchVividness: 1,
-    theme: 'light'
-};
-
-let state: AppState = JSON.parse(JSON.stringify(INITIAL_STATE));
-
-let activeStop: number | 'seed' | null = null;
-let lastAddedStop: number | null = null;
-let lastSwatches: SwatchResult[] = [];
-
-// Figma Tokens Database State (V 0.0.80)
-let detectedPalettes: DetectedPalette[] = [];
-let selectedPaletteId: string | null = null; // hueName of selected palette
-let originalPaletteData: { stop: number; hex: string }[] | null = null; // Snapshot for dirty-checking (Phase 2)
-let isDirty = false; // Phase 2: Track unsaved changes
+// Phase 3: Centralized State Management
+function getState() { return StateManager.getState(); }
+function setState(updates: Partial<any>) { return StateManager.setState(updates); }
 
 // Phase 2 helper: Check if current palette has unsaved changes
 export function hasPendingChanges(): boolean {
-    return isDirty && originalPaletteData !== null;
+    const s = getState();
+    return s.isDirty && s.originalPaletteData !== null;
 }
 
 // Security & Robustness Helpers
@@ -75,32 +58,46 @@ function getEl<T extends HTMLElement>(id: string): T | null {
 // Elements
 const colorInput = getEl<HTMLInputElement>(DOM_IDS.BASE_COLOR_INPUT);
 const colorPicker = getEl<HTMLInputElement>('base-color-picker');
-const copyAnchorBtn = document.getElementById('copy-anchor-hex');
 const anchorSwatchTrigger = document.getElementById('anchor-swatch-trigger');
 const container = getEl<HTMLElement>(DOM_IDS.STOPS_CONTAINER);
-const modal = getEl<HTMLElement>(DOM_IDS.REFINE_MODAL);
-const btnSaveVars = getEl<HTMLButtonElement>('btn-save-vars');
-const btnCreateTemplate = getEl<HTMLButtonElement>('btn-create-template');
-const resetBtn = getEl<HTMLButtonElement>('reset-plugin');
-const hueSlider = getEl<HTMLInputElement>('hue-slider');
-const chromaSlider = getEl<HTMLInputElement>('chroma-slider');
-const hueVal = getEl<HTMLElement>('hue-val');
-const chromaVal = getEl<HTMLElement>('chroma-val');
+const modalContainer = getEl<HTMLElement>('modal-container');
 
-// Mode Toggle Elements
-const modeLegacyBtn = getEl<HTMLButtonElement>('mode-legacy');
-const modeOklchBtn = getEl<HTMLButtonElement>('mode-oklch');
-const oklchHueSlider = getEl<HTMLInputElement>('oklch-hue-slider');
-const oklchHueValue = getEl<HTMLElement>('oklch-hue-value');
-const oklchVividnessSlider = getEl<HTMLInputElement>('oklch-vividness-slider');
-const oklchVividnessValue = getEl<HTMLElement>('oklch-vividness-value');
-const modeThumb = getEl<HTMLElement>('mode-thumb');
-const themeToggleBtn = getEl<HTMLButtonElement>('theme-toggle');
+// Component Containers
+const footerContainer = getEl<HTMLElement>('footer-actions-container');
+const modeTabsContainer = getEl<HTMLElement>('mode-tabs-container');
+const themeToggleBtn = getEl<HTMLElement>('theme-toggle');
+
+// Re-selectors for elements that are now inside components (handled via delegation or re-query)
+let modal: HTMLElement | null = null;
+
+// OKLCH Sliders (Keep references for sync logic)
+let oklchHueSlider: HTMLInputElement | null = null;
+let oklchHueValue: HTMLElement | null = null;
+let oklchVividnessSlider: HTMLInputElement | null = null;
+let oklchVividnessValue: HTMLElement | null = null;
+
+// Legacy Sliders (V 0.0.80)
+let hueVal: HTMLElement | null = null;
+let chromaVal: HTMLElement | null = null;
+
+// Mode Toggle Elements (Now handled by components, but kept as let for logic)
+
+
+const anchorDisplay = document.getElementById('base-color-display');
+const anchorCopyBtn = document.querySelector('.anchor-hex-icon');
 
 
 // Sidebar Elements (V 0.0.80)
-const palettePillsContainer = getEl<HTMLElement>('palette-pills');
+// let palettePillsContainer = getEl<HTMLElement>('palette-pills'); // Decoupled in Phase 3
 const addPaletteBtn = getEl<HTMLButtonElement>('add-palette-btn');
+
+// Global flags for creation state
+(window as any)._isCreatingManual = false;
+
+// Header Expand/Collapse Elements (V 1.0.1)
+const editPaletteToggle = getEl<HTMLButtonElement>('edit-palette-toggle');
+const expandableSettings = getEl<HTMLElement>('expandable-settings');
+const topHeader = document.querySelector('.top-header-container') as HTMLElement;
 
 
 
@@ -110,17 +107,18 @@ const addPaletteBtn = getEl<HTMLButtonElement>('add-palette-btn');
  */
 function syncColorInputs(source: 'hex' | 'sliders') {
     if (source === 'hex') {
-        const color = oklch(state.baseColor);
+        const color = oklch(getState().baseColor);
         if (color) {
             // Update Hue
-            state.oklchHue = Math.round(color.h || 0);
-            const sliderHue = (state.oklchHue - HUE_OFFSET + 360) % 360;
+            getState().oklchHue = Math.round(color.h || 0);
+            const h = getState().oklchHue || 0;
+            const sliderHue = (h - 0 + 360) % 360;
             if (oklchHueSlider) oklchHueSlider.value = String(Math.round(sliderHue));
-            if (oklchHueValue) oklchHueValue.innerText = `${state.oklchHue}°`;
+            if (oklchHueValue) oklchHueValue.innerText = `${h}°`;
 
             // Update Vividness
             const vividnessPct = Math.min(100, Math.round((color.c || 0) / 0.4 * 100));
-            state.oklchVividness = vividnessPct / 100;
+            getState().oklchVividness = vividnessPct / 100;
             if (oklchVividnessSlider) oklchVividnessSlider.value = String(vividnessPct);
             if (oklchVividnessValue) oklchVividnessValue.innerText = `${vividnessPct}%`;
         }
@@ -132,25 +130,27 @@ function syncColorInputs(source: 'hex' | 'sliders') {
         const representativeColor = {
             mode: 'oklch' as const,
             l: 0.68, // Match gradient lightness for consistency
-            c: state.oklchVividness * 0.4, // Match the 0.4 normalization
-            h: state.oklchHue
+            c: (getState().oklchVividness || 0) * 0.4, // Match the 0.4 normalization
+            h: getState().oklchHue || 0
         };
         const hex = formatHex(representativeColor) || '#000000';
-        state.baseColor = hex;
-        if (colorInput) colorInput.value = hex.toUpperCase();
-        if (colorPicker) colorPicker.value = hex;
+        getState().baseColor = hex;
+        const input = getEl<HTMLInputElement>(DOM_IDS.BASE_COLOR_INPUT);
+        const picker = getEl<HTMLInputElement>('base-color-picker');
+        if (input) input.value = hex.toUpperCase();
+        if (picker) picker.value = hex;
     }
 
     // Always update the preview pill background
     const previewBg = document.getElementById('color-preview-bg');
     if (previewBg) {
-        previewBg.style.background = state.baseColor;
+        previewBg.style.background = getState().baseColor;
     }
 
     // Always update Vividness slider background to reflect current hue
     const vividWrapper = document.querySelector('.vivid-slider-wrapper') as HTMLElement;
     if (vividWrapper) {
-        const h = state.oklchHue;
+        const h = getState().oklchHue || 0;
         // Boosted lightness to 0.68 for spectral vibrancy
         const startColor = formatHex({ mode: 'oklch', l: 0.68, c: 0, h: h }) || '#cccccc';
         const endColor = formatHex({ mode: 'oklch', l: 0.68, c: 0.35, h: h }) || '#00ff00';
@@ -166,7 +166,7 @@ function syncColorInputs(source: 'hex' | 'sliders') {
         // 0° (red) should appear on the left, and 360° (red again) on the right
         const steps = 37; // 37 steps gives us 0°, 10°, 20°... 350°, 360°
         const gradientColors = [];
-        const dynamicChroma = Math.max(0, state.oklchVividness * 0.32);
+        const dynamicChroma = Math.max(0, (getState().oklchVividness || 0) * 0.32);
 
         for (let i = 0; i < steps; i++) {
             const hue = i * 360 / (steps - 1); // Evenly distribute from 0 to 360
@@ -178,32 +178,34 @@ function syncColorInputs(source: 'hex' | 'sliders') {
 }
 
 /**
- * Initializes all UI sliders and displays to match the current state.
+ * Initializes all UI sliders and displays to match the current getState().
  * Called once on page load to ensure HTML defaults are overridden.
  */
 function initializeSliders() {
     // Sync OKLCH Hue Slider
     if (oklchHueSlider && oklchHueValue) {
-        const sliderHue = (state.oklchHue - HUE_OFFSET + 360) % 360;
+        const h = getState().oklchHue || 0;
+        const sliderHue = (h - 0 + 360) % 360;
         oklchHueSlider.value = String(Math.round(sliderHue));
-        oklchHueValue.innerText = `${state.oklchHue}°`;
+        oklchHueValue.innerText = `${h}°`;
     }
 
     // Sync OKLCH Vividness Slider
     if (oklchVividnessSlider && oklchVividnessValue) {
-        const vividnessPct = Math.round(state.oklchVividness * 100);
+        const v = getState().oklchVividness || 0;
+        const vividnessPct = Math.round(v * 100);
         oklchVividnessSlider.value = String(vividnessPct);
         oklchVividnessValue.innerText = `${vividnessPct}%`;
     }
 
     // Sync color input and picker with base color
-    if (colorInput) colorInput.value = state.baseColor.toUpperCase();
-    if (colorPicker) colorPicker.value = state.baseColor;
+    if (colorInput) colorInput.value = getState().baseColor.toUpperCase();
+    if (colorPicker) colorPicker.value = getState().baseColor;
 
     // Sync anchor color preview background
     const previewBg = document.getElementById('color-preview-bg');
     if (previewBg) {
-        previewBg.style.background = state.baseColor;
+        previewBg.style.background = getState().baseColor;
     }
 
     // Update slider backgrounds to match current state
@@ -212,18 +214,25 @@ function initializeSliders() {
 
 
 function getSwatches(): SwatchResult[] {
-    const swatches = state.paletteMode === 'oklch'
-        ? generateOKLCHSwatches(state.oklchHue, state.stops, state.oklchVividness, state.overrides)
+    const swatches = getState().paletteMode === 'oklch'
+        ? generatePerceptualV2({
+            baseColor: getState().baseColor,
+            stops: getState().stops,
+            overrides: getState().overrides,
+            anchorStop: getState().anchorStop,
+            oklchHue: getState().oklchHue || 0,
+            oklchVividness: getState().oklchVividness || 0
+        })
         : generateSwatches({
-            baseColor: state.baseColor,
-            stops: state.stops,
-            overrides: state.overrides,
-            anchorStop: state.anchorStop,
+            baseColor: getState().baseColor,
+            stops: getState().stops,
+            overrides: getState().overrides,
+            anchorStop: getState().anchorStop,
             anchorTheme: 'light'
         });
 
     // Post-process with contrast against theme
-    const bg = getContrastBackground(state.theme);
+    const bg = getContrastBackground(getState().theme);
     swatches.forEach(s => {
         s.contrastWithNext = wcagContrast(s.hex, bg);
     });
@@ -233,8 +242,28 @@ function getSwatches(): SwatchResult[] {
 
 function update() {
     try {
-        lastSwatches = getSwatches();
-        render(lastSwatches);
+        const s = getState();
+        s.lastSwatches = getSwatches();
+        render(s.lastSwatches);
+
+        // Render Header Components (Only create once)
+        if (modeTabsContainer && !modeTabsContainer.hasChildNodes()) {
+            modeTabsContainer.appendChild(createSegmentController({
+                id: 'mode-switch',
+                options: [
+                    { id: 'oklch', label: 'Perceptual' },
+                    { id: 'legacy', label: 'Legacy' }
+                ],
+                activeId: s.paletteMode as string,
+                onChange: (id) => {
+                    s.paletteMode = id as any;
+                    update();
+                }
+            }));
+        }
+
+
+
         // Inject Lucide icons into any new DOM elements
         createIcons({
             icons: {
@@ -254,7 +283,10 @@ function update() {
                 Copy,
                 Settings,
                 MoreVertical,
-                GripVertical
+                GripVertical,
+                ChevronDown,
+                Pencil,
+                Globe
             },
             attrs: {
                 width: 16,
@@ -271,6 +303,37 @@ function update() {
                 newTooltipTrigger.onmouseleave = startHideTimeout;
             }
         });
+        // Apply Multi-State Logic
+        renderHeaderExpansion();
+        applyUIState();
+        renderPaletteSidebar();
+
+        // Re-initialize slider references
+        oklchHueSlider = getEl<HTMLInputElement>('oklch-hue-slider');
+        oklchHueValue = getEl<HTMLElement>('oklch-hue-value');
+        oklchVividnessSlider = getEl<HTMLInputElement>('oklch-vividness-slider');
+        oklchVividnessValue = getEl<HTMLElement>('oklch-vividness-value');
+
+
+        modal = getEl<HTMLElement>(DOM_IDS.REFINE_MODAL);
+
+        // Render Refine Modal if not present
+        if (modalContainer && !document.getElementById('refine-modal')) {
+            modalContainer.innerHTML = '';
+            // For now, we pass a dummy swatch or the first one if possible
+            // In a real app, this would be reactive or the modal would be static
+            const dummySwatch = s.lastSwatches[0] || { stop: 500, hex: '#000000', ratio: 1 };
+            modalContainer.appendChild(createRefineModal({
+                swatch: dummySwatch as any,
+                override: {} as any,
+                activeMode: 'hsl',
+                onClose: () => { if (modal) modal.classList.add('hidden'); },
+                onReset: () => { (window as any).resetOverride(); },
+                onSave: () => { (window as any).saveOverride(); },
+                onModeSwitch: (mode) => { (window as any).switchToMode(mode); },
+                onSliderInput: (key, val) => { (window as any).handleSliderInput(key, val); }
+            }));
+        }
     } catch (e) {
         console.error('Update failed', e);
     }
@@ -285,7 +348,7 @@ function render(swatches: SwatchResult[]) {
 
     // Update table header based on mode
     const tableHeader = document.querySelector('.list-header') as HTMLElement;
-    const isPerceptual = state.paletteMode === 'oklch';
+    const isPerceptual = getState().paletteMode === 'oklch';
     const headerLabel = isPerceptual ? 'L<sup style="font-size: 0.7em; vertical-align: super; position: relative; top: -2px;">c</sup> Ratio' : "WCAG Ratio";
 
     if (tableHeader) {
@@ -320,9 +383,9 @@ function render(swatches: SwatchResult[]) {
         const firstStop = Number(swatches[0].stop);
         const edgeMidpoint = Math.round(firstStop / 2);
 
-        if (edgeMidpoint > 0 && !state.stops.includes(edgeMidpoint)) {
+        if (edgeMidpoint > 0 && !getState().stops.includes(edgeMidpoint)) {
             try {
-                const tempState = { ...state, stops: [edgeMidpoint], overrides: {} };
+                const tempState = { ...getState(), stops: [edgeMidpoint], overrides: {} };
                 const [tempSwatch] = generateSwatches(tempState);
                 if (tempSwatch.hex.toLowerCase() !== '#ffffff') {
                     const edgeRowStart = document.createElement('div');
@@ -337,9 +400,9 @@ function render(swatches: SwatchResult[]) {
                     const btn = edgeRowStart.querySelector('.insert-btn') as HTMLButtonElement;
                     if (btn) {
                         btn.onclick = () => {
-                            lastAddedStop = edgeMidpoint;
-                            state.stops.push(edgeMidpoint);
-                            state.stops.sort((a, b) => a - b);
+                            getState().lastAddedStop = edgeMidpoint;
+                            getState().stops.push(edgeMidpoint);
+                            getState().stops.sort((a, b) => a - b);
                             update();
                         };
                     }
@@ -350,61 +413,21 @@ function render(swatches: SwatchResult[]) {
     }
 
     swatches.forEach((s, i) => {
+        const isIntermediate = ![100, 200, 300, 400, 500, 600, 700, 800, 900].includes(Number(s.stop)) && !s.isAnchor;
+
         // 1. Table Row
-        const row = document.createElement('div');
-        const isNew = Number(s.stop) === lastAddedStop;
-        row.className = `list-row ${s.isAnchor ? 'is-anchor' : ''} ${isNew ? 'new-row' : ''}`;
-
-        // Calculate contrast
-        const hex = s.hex || '#000000';
-        const contrast = wcagContrast(hex, getContrastBackground(state.theme)).toFixed(2);
-        const isPass = parseFloat(contrast) >= 4.5;
-
-        let labelId = s.stop.toString();
-        if (s.isAnchor) labelId = `${s.stop} (Seed)`;
-
-        const isIntermediate = !STANDARD_STOPS.includes(Number(s.stop)) && !s.isAnchor;
-        let deleteBtnHtml = '';
-        if (isIntermediate && swatches.length > 2) {
-            deleteBtnHtml = `<span class="delete-stop-btn" title="Remove stop"><i data-lucide="trash-2" class="icon-svg" style="width: 14px; height: 14px;"></i></span>`;
-        }
-
-        const rowVal = formatColumnValue(isPerceptual ? (s.lch?.l || 0) : parseFloat(contrast), isPerceptual);
-
-        row.innerHTML = `
-            <div class="list-row__cell">
-                ${rowVal} 
-                ${getStatusIcon(isPass || s.isAnchor)}
-            </div>
-            <div class="list-row__cell cell-name">
-                <span class="stop-number">${labelId}</span>
-            </div>
-            <div class="list-row__cell cell-color">
-                <div class="color-pill" style="background-color: ${hex};"></div>
-                ${deleteBtnHtml}
-            </div>
-        `;
-
-        if (isIntermediate) {
-            const delBtn = row.querySelector('.delete-stop-btn') as HTMLElement;
-            if (delBtn) {
-                delBtn.onclick = (e) => {
-                    e.stopPropagation(); // Prevents openRefine
-
-                    // Exit Animation Lifecycle
-                    row.classList.add('removing');
-                    setTimeout(() => {
-                        state.stops = state.stops.filter(stop => stop !== Number(s.stop));
-                        state.stops.sort((a, b) => a - b);
-                        update();
-                    }, 250); // Matches CSS row-exit duration
-                };
-            }
-        }
-
-        row.onclick = () => {
-            openRefine(s);
-        };
+        const row = createPaletteRow({
+            swatch: s,
+            isPerceptual: getState().paletteMode === 'oklch',
+            isNew: Number(s.stop) === getState().lastAddedStop,
+            theme: getState().theme,
+            onDelete: (isIntermediate && swatches.length > 2) ? (stop) => {
+                getState().stops = getState().stops.filter(st => st !== stop);
+                getState().stops.sort((a, b) => a - b);
+                update();
+            } : undefined,
+            onClick: (swatch) => openRefine(swatch)
+        });
 
         container?.appendChild(row);
 
@@ -413,7 +436,7 @@ function render(swatches: SwatchResult[]) {
         const nextStop = i < swatches.length - 1 ? Number(swatches[i + 1].stop) : 1000; // 1000 as max
         const midpoint = Math.round((currentStop + nextStop) / 2);
 
-        if (midpoint > currentStop && midpoint < nextStop && !state.stops.includes(midpoint)) {
+        if (midpoint > currentStop && midpoint < nextStop && !getState().stops.includes(midpoint)) {
             const insertionRow = document.createElement('div');
             insertionRow.className = 'insertion-row';
             insertionRow.innerHTML = `
@@ -427,9 +450,9 @@ function render(swatches: SwatchResult[]) {
             const btn = insertionRow.querySelector('.insert-btn') as HTMLButtonElement;
             if (btn) {
                 btn.onclick = () => {
-                    lastAddedStop = midpoint;
-                    state.stops.push(midpoint);
-                    state.stops.sort((a, b) => a - b);
+                    getState().lastAddedStop = midpoint;
+                    getState().stops.push(midpoint);
+                    getState().stops.sort((a, b) => a - b);
                     update();
                 };
             }
@@ -451,17 +474,17 @@ function render(swatches: SwatchResult[]) {
     container?.appendChild(blackRow);
 
     // Reset animation state
-    lastAddedStop = null;
+    getState().lastAddedStop = null;
 }
 
 function openRefine(swatch: SwatchResult) {
     console.log('Opening refine modal for:', swatch);
-    activeStop = swatch.isOriginal ? 'seed' : swatch.stop;
+    getState().activeStop = swatch.isOriginal ? 'seed' : swatch.stop;
     const title = getEl<HTMLElement>('modal-stop-title');
     if (title) title.innerText = swatch.isOriginal ? `Refine Original Color` : `Refine Stop ${swatch.stop}`;
 
     // 1. Capture original algorithmic color (no overrides)
-    const tempState = { ...state, overrides: {} };
+    const tempState = { ...getState(), overrides: {} };
     const baseSwatches = generateSwatches(tempState);
     const original = swatch.isOriginal ? baseSwatches.find(x => x.isOriginal) : baseSwatches.find(x => x.stop === swatch.stop);
 
@@ -469,10 +492,10 @@ function openRefine(swatch: SwatchResult) {
         document.getElementById('preview-before')!.style.backgroundColor = original.hex;
 
         // 2. Initialize override if missing
-        const stopKey = activeStop as number; // Type casting for ease, logic handles 'seed' if it were used
-        if (!state.overrides[stopKey]) {
+        const stopKey = getState().activeStop as number; // Type casting for ease, logic handles 'seed' if it were used
+        if (!getState().overrides[stopKey]) {
             const cHsl = hsl(original.hex) || { h: 0, s: 0, l: 0 };
-            state.overrides[stopKey] = { mode: 'hsl', hue: cHsl.h || 0, s: cHsl.s || 0, lightness: cHsl.l || 0 };
+            getState().overrides[stopKey] = { mode: 'hsl', hue: cHsl.h || 0, s: cHsl.s || 0, lightness: cHsl.l || 0 };
         }
     }
 
@@ -480,34 +503,34 @@ function openRefine(swatch: SwatchResult) {
         modal.classList.remove('hidden');
         modal.style.display = 'flex';
     }
-    const override = state.overrides[activeStop as number];
+    const override = getState().overrides[getState().activeStop as number];
     const mode = override ? (override.mode || 'hsl') : 'hsl';
     switchMode(mode);
 }
 
 function switchMode(newMode: string) {
-    if (activeStop === null) return;
-    const stopKey = activeStop as number;
+    if (getState().activeStop === null) return;
+    const stopKey = getState().activeStop as number;
 
-    const currentSwatches = generateSwatches(state);
-    const currentSwatch = activeStop === 'seed' ? currentSwatches.find(x => x.isOriginal) : currentSwatches.find(x => x.stop === activeStop);
+    const currentSwatches = generateSwatches(getState());
+    const currentSwatch = getState().activeStop === 'seed' ? currentSwatches.find(x => x.isOriginal) : currentSwatches.find(x => x.stop === getState().activeStop);
 
     if (currentSwatch) {
         const currentHex = currentSwatch.hex;
 
         if (newMode === 'lch') {
             const cLch = lch(currentHex) || { l: 0, c: 0, h: 0 };
-            state.overrides[stopKey] = { mode: 'lch', hue: cLch.h || 0, chroma: cLch.c || 0, lightness: cLch.l || 0 };
+            getState().overrides[stopKey] = { mode: 'lch', hue: cLch.h || 0, chroma: cLch.c || 0, lightness: cLch.l || 0 };
         } else if (newMode === 'hsl') {
             const cHsl = hsl(currentHex) || { h: 0, s: 0, l: 0 };
-            state.overrides[stopKey] = { mode: 'hsl', hue: cHsl.h || 0, s: cHsl.s || 0, lightness: cHsl.l || 0 };
+            getState().overrides[stopKey] = { mode: 'hsl', hue: cHsl.h || 0, s: cHsl.s || 0, lightness: cHsl.l || 0 };
         } else if (newMode === 'rgb') {
             const cRgb = rgb(currentHex) || { r: 0, g: 0, b: 0 };
-            state.overrides[stopKey] = { mode: 'rgb', r: cRgb.r || 0, g: cRgb.g || 0, b: cRgb.b || 0 };
+            getState().overrides[stopKey] = { mode: 'rgb', r: cRgb.r || 0, g: cRgb.g || 0, b: cRgb.b || 0 };
         } else if (newMode === 'hsb') {
             const cHsv = hsv(currentHex) || { h: 0, s: 0, v: 0 };
             // Note: culori hsv uses 'v' for value (brightness)
-            state.overrides[stopKey] = { mode: 'hsb', hue: cHsv.h || 0, s: cHsv.s || 0, v: cHsv.v || 0 };
+            getState().overrides[stopKey] = { mode: 'hsb', hue: cHsv.h || 0, s: cHsv.s || 0, v: cHsv.v || 0 };
         }
     }
 
@@ -535,7 +558,7 @@ function switchMode(newMode: string) {
 }
 
 function syncSliders(mode: string) {
-    const override = state.overrides[activeStop as number];
+    const override = getState().overrides[getState().activeStop as number];
     if (!override) return;
 
     // Helper to get HSV (HSB)
@@ -570,7 +593,7 @@ function syncSliders(mode: string) {
         updateHSLSliders(h, s, l);
     } else if (mode === 'hsb') {
         // We need current hex to get HSV
-        // If state.overrides has HSV props, use them, else convert
+        // If getState().overrides has HSV props, use them, else convert
         // state isn't typed for hsv yet, but overrides is 'any' in practice or we extend it
         // let's assume we store h/s/v in override if mode is hsb
         let h = override.hue ?? 0;
@@ -647,31 +670,28 @@ document.querySelectorAll('.mode-tab').forEach(btn => {
     }
 });
 
-if (hueSlider) {
-    hueSlider.oninput = (e) => {
-        const target = e.target as HTMLInputElement;
-        const h = parseFloat(target.value);
-        state.overrides[activeStop as number] = { ...state.overrides[activeStop as number], hue: h };
-        if (hueVal) hueVal.innerText = `${Math.round(h)}°`;
-        update(); updateModalPreview();
-    };
-}
-if (chromaSlider) {
-    chromaSlider.oninput = (e) => {
-        const target = e.target as HTMLInputElement;
-        const c = parseFloat(target.value);
-        state.overrides[activeStop as number] = { ...state.overrides[activeStop as number], chroma: c };
-        if (chromaVal) chromaVal.innerText = String(Math.round(c));
-        update(); updateModalPreview();
-    };
-}
+getEl<HTMLInputElement>('hue-slider')?.addEventListener('input', (e: any) => {
+    const target = e.target as HTMLInputElement;
+    const h = parseFloat(target.value);
+    getState().overrides[getState().activeStop as number] = { ...getState().overrides[getState().activeStop as number], hue: h };
+    if (hueVal) (hueVal as HTMLElement).innerText = `${Math.round(h)}°`;
+    update(); updateModalPreview();
+});
+
+getEl<HTMLInputElement>('chroma-slider')?.addEventListener('input', (e: any) => {
+    const target = e.target as HTMLInputElement;
+    const c = parseFloat(target.value);
+    getState().overrides[getState().activeStop as number] = { ...getState().overrides[getState().activeStop as number], chroma: c };
+    if (chromaVal) (chromaVal as HTMLElement).innerText = String(Math.round(c));
+    update(); updateModalPreview();
+});
 const lchLSlider = getEl<HTMLInputElement>('lch-l-slider');
 const lchLVal = getEl<HTMLElement>('lch-l-val');
 if (lchLSlider) {
     lchLSlider.oninput = (e) => {
         const target = e.target as HTMLInputElement;
         const l = parseFloat(target.value);
-        state.overrides[activeStop as number] = { ...state.overrides[activeStop as number], lightness: l };
+        getState().overrides[getState().activeStop as number] = { ...getState().overrides[getState().activeStop as number], lightness: l };
         if (lchLVal) lchLVal.innerText = String(Math.round(l));
         update(); updateModalPreview();
     };
@@ -681,17 +701,17 @@ if (lchLSlider) {
 const resetOverrideBtn = getEl<HTMLButtonElement>('reset-override');
 if (resetOverrideBtn) {
     resetOverrideBtn.onclick = () => {
-        const stopKey = activeStop as number;
-        if (activeStop === null) return;
-        delete state.overrides[stopKey];
+        const stopKey = getState().activeStop as number;
+        if (getState().activeStop === null) return;
+        delete getState().overrides[stopKey];
 
-        const tempState = { ...state, overrides: {} };
+        const tempState = { ...getState(), overrides: {} };
         const baseSwatches = generateSwatches(tempState);
-        const original = activeStop === 'seed' ? baseSwatches.find(x => x.isOriginal) : baseSwatches.find(x => x.stop === activeStop);
+        const original = getState().activeStop === 'seed' ? baseSwatches.find(x => x.isOriginal) : baseSwatches.find(x => x.stop === getState().activeStop);
 
         if (original) {
             const cHsl = hsl(original.hex) || { h: 0, s: 0, l: 0 };
-            state.overrides[stopKey] = { mode: 'hsl', hue: cHsl.h || 0, s: cHsl.s || 0, lightness: cHsl.l || 0 };
+            getState().overrides[stopKey] = { mode: 'hsl', hue: cHsl.h || 0, s: cHsl.s || 0, lightness: cHsl.l || 0 };
         }
 
         switchMode('hsl');
@@ -713,8 +733,8 @@ if (hslHSlider) {
         const h = parseFloat(target.value);
 
         // Update State
-        const currentOverride = state.overrides[activeStop as number] || {};
-        state.overrides[activeStop as number] = { ...currentOverride, hue: h };
+        const currentOverride = getState().overrides[getState().activeStop as number] || {};
+        getState().overrides[getState().activeStop as number] = { ...currentOverride, hue: h };
 
         if (hslHVal) hslHVal.innerText = `${Math.round(h)}°`;
 
@@ -732,8 +752,8 @@ if (hslSSlider) {
         const sPct = parseFloat(target.value);
 
         // Update State
-        const currentOverride = state.overrides[activeStop as number] || {};
-        state.overrides[activeStop as number] = { ...currentOverride, s: sPct / 100 };
+        const currentOverride = getState().overrides[getState().activeStop as number] || {};
+        getState().overrides[getState().activeStop as number] = { ...currentOverride, s: sPct / 100 };
 
         const hslSVal = getEl<HTMLElement>('hsl-s-val');
         if (hslSVal) hslSVal.innerText = `${Math.round(sPct)}%`;
@@ -752,8 +772,8 @@ if (hslLSlider) {
         const lPct = parseFloat(target.value);
 
         // Update State
-        const currentOverride = state.overrides[activeStop as number] || {};
-        state.overrides[activeStop as number] = { ...currentOverride, lightness: lPct / 100 };
+        const currentOverride = getState().overrides[getState().activeStop as number] || {};
+        getState().overrides[getState().activeStop as number] = { ...currentOverride, lightness: lPct / 100 };
 
         const hslLVal = getEl<HTMLElement>('hsl-l-val');
         if (hslLVal) hslLVal.innerText = `${Math.round(lPct)}%`;
@@ -814,20 +834,20 @@ function updateHSBSliders(h: number, s: number, v: number) {
             const val = parseFloat(target.value);
 
             // Update Override State
-            const currentOverride = state.overrides[activeStop as number] || {};
+            const currentOverride = getState().overrides[getState().activeStop as number] || {};
             let h = currentOverride.hue ?? 0;
             let s = currentOverride.s ?? 0;
             let v = currentOverride.v ?? 0;
 
             if (chan === 'h') {
                 h = val;
-                state.overrides[activeStop as number] = { ...currentOverride, hue: val, mode: 'hsb' };
+                getState().overrides[getState().activeStop as number] = { ...currentOverride, hue: val, mode: 'hsb' };
             } else if (chan === 's') {
                 s = val / 100;
-                state.overrides[activeStop as number] = { ...currentOverride, s: s, mode: 'hsb' };
+                getState().overrides[getState().activeStop as number] = { ...currentOverride, s: s, mode: 'hsb' };
             } else if (chan === 'b') {
                 v = val / 100;
-                state.overrides[activeStop as number] = { ...currentOverride, v: v, mode: 'hsb' };
+                getState().overrides[getState().activeStop as number] = { ...currentOverride, v: v, mode: 'hsb' };
             }
 
             const hsbVal = getEl<HTMLElement>(`hsb-${chan}-val`);
@@ -856,7 +876,14 @@ function updateRGBSliders(r: number, g: number, b: number) {
     if (bSlider) bSlider.style.background = `linear-gradient(to right, rgb(${to255(r)}, ${to255(g)}, 0), rgb(${to255(r)}, ${to255(g)}, 255))`;
 }
 
-// RGB Listeners (Fixed to simple iteration)
+// ANCHOR LISTENERS
+if (anchorCopyBtn) {
+    (anchorCopyBtn as HTMLElement).onclick = () => {
+        const currentHex = getState().baseColor.toUpperCase();
+        copyToClipboard(currentHex);
+        parent.postMessage({ pluginMessage: { type: 'NOTIFY', message: 'Hex code copied!' } }, '*');
+    };
+}
 ['r', 'g', 'b'].forEach(chan => {
     const el = getEl<HTMLInputElement>(`rgb-${chan}-slider`);
     if (el) {
@@ -865,12 +892,12 @@ function updateRGBSliders(r: number, g: number, b: number) {
             const val = parseInt(target.value);
 
             // Update state
-            const currentOverride = state.overrides[activeStop as number] || {};
+            const currentOverride = getState().overrides[getState().activeStop as number] || {};
             const r = (chan === 'r' ? val / 255 : (currentOverride.r !== undefined ? currentOverride.r : 0));
             const g = (chan === 'g' ? val / 255 : (currentOverride.g !== undefined ? currentOverride.g : 0));
             const b = (chan === 'b' ? val / 255 : (currentOverride.b !== undefined ? currentOverride.b : 0));
 
-            state.overrides[activeStop as number] = { ...currentOverride, [chan]: val / 255, mode: 'rgb' };
+            getState().overrides[getState().activeStop as number] = { ...currentOverride, [chan]: val / 255, mode: 'rgb' };
             const rgbVal = getEl<HTMLElement>(`rgb-${chan}-val`);
             if (rgbVal) rgbVal.innerText = String(val);
 
@@ -884,7 +911,7 @@ function updateRGBSliders(r: number, g: number, b: number) {
 
 function closeModal() {
     if (modal) modal.classList.add('hidden');
-    activeStop = null;
+    getState().activeStop = null;
 }
 
 const closeModalBtn = getEl<HTMLButtonElement>('close-modal');
@@ -895,10 +922,10 @@ const doneBtn = document.getElementById('save-modal-btn');
 if (doneBtn) {
     doneBtn.onclick = () => {
         // Handle "Original/Seed" Persistence
-        // Since generateSwatches uses state.baseColor (not overrides['seed']), we must apply the override to baseColor now.
-        if (activeStop === 'seed' && state.overrides['seed']) {
-            const over = state.overrides['seed'];
-            let newHex = state.baseColor;
+        // Since generateSwatches uses getState().baseColor (not overrides['seed']), we must apply the override to baseColor now.
+        if (getState().activeStop === 'seed' && getState().overrides['seed']) {
+            const over = getState().overrides['seed'];
+            let newHex = getState().baseColor;
 
             // Convert Override to Hex
             if (over.mode === 'hsl' || over.mode === 'hsb' || over.mode === 'rgb' || over.mode === 'lch') {
@@ -925,7 +952,7 @@ if (doneBtn) {
                     const hex = formatHex(colorObj);
                     if (hex) {
                         newHex = hex;
-                        state.baseColor = newHex;
+                        getState().baseColor = newHex;
                         // Sync Main UI inputs
                         syncColorInputs('hex');
                         const basePicker = getEl<HTMLInputElement>('base-color-picker');
@@ -936,7 +963,7 @@ if (doneBtn) {
                 }
             }
             // Clear the override since it's now the base color
-            delete state.overrides['seed'];
+            delete getState().overrides['seed'];
         }
 
         // Ensure state is up to date and UI reflects it
@@ -947,7 +974,7 @@ if (doneBtn) {
 
 // Click outside to close
 if (modal) {
-    modal.onclick = (e) => {
+    (modal as HTMLElement).onclick = (e: MouseEvent) => {
         if (e.target === modal) {
             closeModal();
         }
@@ -955,18 +982,29 @@ if (modal) {
 }
 
 function updateModalPreview() {
-    if (activeStop === null) return;
+    if (getState().activeStop === null) return;
     const swatches = getSwatches();
-    const swatch = activeStop === 'seed' ? swatches.find(x => x.isOriginal) : swatches.find(s => s.stop === activeStop);
+    const swatch = getState().activeStop === 'seed'
+        ? swatches.find(x => x.isOriginal)
+        : swatches.find(s => s.stop === (getState().activeStop as number));
 
     if (!swatch) return;
 
     // Get Original for comparison
-    const tempState = { ...state, overrides: {} };
-    const baseSwatches = state.paletteMode === 'oklch'
-        ? generateOKLCHSwatches(tempState.oklchHue, tempState.stops, tempState.oklchVividness, {})
+    const tempState = { ...getState(), overrides: {} };
+    const baseSwatches = getState().paletteMode === 'oklch'
+        ? generatePerceptualV2({
+            baseColor: tempState.baseColor,
+            stops: tempState.stops,
+            overrides: {},
+            anchorStop: tempState.anchorStop,
+            oklchHue: tempState.oklchHue || 0,
+            oklchVividness: tempState.oklchVividness || 0
+        })
         : generateSwatches(tempState);
-    const original = activeStop === 'seed' ? baseSwatches.find(x => x.isOriginal) : baseSwatches.find(s => s.stop === (typeof activeStop === 'string' ? swatch.stop : activeStop));
+    const original = getState().activeStop === 'seed'
+        ? baseSwatches.find((x: SwatchResult) => x.isOriginal)
+        : baseSwatches.find((s: SwatchResult) => s.stop === (typeof getState().activeStop === 'string' ? swatch.stop : getState().activeStop));
 
     if (!original) return;
 
@@ -1090,7 +1128,7 @@ if (colorInput) {
 
         const resolved = resolveInputColor(val);
         if (resolved) {
-            state.baseColor = resolved;
+            getState().baseColor = resolved;
             if (colorPicker) colorPicker.value = resolved;
             syncColorInputs('hex');
             update();
@@ -1100,7 +1138,7 @@ if (colorInput) {
 
     colorInput.onblur = () => {
         // Ensure we always end with a valid hex in the field
-        colorInput.value = state.baseColor.toUpperCase();
+        colorInput.value = getState().baseColor.toUpperCase();
     };
 
     colorInput.onkeydown = (e) => {
@@ -1113,8 +1151,8 @@ if (colorInput) {
 if (colorPicker) {
     colorPicker.oninput = (e) => {
         const target = e.target as HTMLInputElement;
-        state.baseColor = target.value;
-        if (colorInput) colorInput.value = state.baseColor.toUpperCase();
+        getState().baseColor = target.value;
+        if (colorInput) colorInput.value = getState().baseColor.toUpperCase();
         syncColorInputs('hex');
         update();
     };
@@ -1125,79 +1163,63 @@ if (colorPicker) {
 // ==============================================================================
 
 function setMode(mode: 'legacy' | 'oklch') {
-    state.paletteMode = mode;
+    getState().paletteMode = mode;
     // We NO LONGER reset overrides or stops when switching modes
     // because the user might want to compare the same settings in different algos.
-
-    // Update UI tabs
-    if (modeLegacyBtn) modeLegacyBtn.classList.toggle('active', mode === 'legacy');
-    if (modeOklchBtn) modeOklchBtn.classList.toggle('active', mode === 'oklch');
-
-    // Slide the thumb
-    if (modeThumb) {
-        modeThumb.style.transform = mode === 'legacy' ? 'translateX(0)' : 'translateX(100%)';
-    }
-
 
     // Both modes now share the same color picking options (sliders + hex)
     // as they are bi-directionally synced.
 
     // Immediately update UI with existing swatches (mode-dependent display)
-    if (lastSwatches.length > 0) {
-        render(lastSwatches);
+    if (getState().lastSwatches.length > 0) {
+        render(getState().lastSwatches);
     }
 }
 
-// Mode Toggle Handlers
-if (modeLegacyBtn) modeLegacyBtn.onclick = () => setMode('legacy');
-if (modeOklchBtn) modeOklchBtn.onclick = () => setMode('oklch');
+// Sliders and other inputs handled below
 
 // OKLCH Hue Slider
-if (oklchHueSlider) {
-    oklchHueSlider.oninput = (e) => {
-        const target = e.target as HTMLInputElement;
-        const sliderHue = parseInt(target.value, 10);
-        // Offset logic: 0 on slider maps to OKLCH 29° (Red)
-        const logicalHue = (sliderHue + HUE_OFFSET) % 360;
-        state.oklchHue = logicalHue;
-        if (oklchHueValue) oklchHueValue.innerText = `${logicalHue}°`;
-        syncColorInputs('sliders');
-        update();
-    };
-}
+getEl<HTMLInputElement>('oklch-hue-slider')?.addEventListener('input', (e) => {
+    const target = e.target as HTMLInputElement;
+    const sliderHue = parseInt(target.value, 10);
+    // Offset logic: 0 on slider maps to OKLCH 29° (Red)
+    const logicalHue = (sliderHue + 0) % 360;
+    getState().oklchHue = logicalHue;
+    if (oklchHueValue) (oklchHueValue as HTMLElement).innerText = `${logicalHue}°`;
+    syncColorInputs('sliders');
+    update();
+});
 
 // OKLCH Vividness Slider
-if (oklchVividnessSlider) {
-    oklchVividnessSlider.oninput = (e) => {
-        const target = e.target as HTMLInputElement;
-        const vividness = parseInt(target.value, 10);
-        state.oklchVividness = vividness / 100; // Convert 0-100 to 0-1
-        if (oklchVividnessValue) oklchVividnessValue.innerText = `${vividness}%`;
-        syncColorInputs('sliders');
-        update();
-    };
-}
+getEl<HTMLInputElement>('oklch-vividness-slider')?.addEventListener('input', (e) => {
+    const target = e.target as HTMLInputElement;
+    const vividness = parseInt(target.value, 10);
+    getState().oklchVividness = vividness / 100; // Convert 0-100 to 0-1
+    if (oklchVividnessValue) (oklchVividnessValue as HTMLElement).innerText = `${vividness}%`;
+    syncColorInputs('sliders');
+    update();
+});
 
 
 // Helper to construct payload
 function getPayload(isUpdate: boolean): FigmaExportPayload {
     // Determine Base Name
-    const safeAnchor = lastSwatches.find(s => s.isAnchor) || lastSwatches[0];
+    const safeAnchor = getState().lastSwatches.find(s => s.isAnchor) || getState().lastSwatches[0];
     let baseColorName: string;
 
-    if (state.paletteMode === 'oklch') {
-        const hue = state.oklchHue;
-        if (hue < 15 || hue >= 345) baseColorName = 'Red';
-        else if (hue < 45) baseColorName = 'Orange';
-        else if (hue < 75) baseColorName = 'Yellow';
-        else if (hue < 150) baseColorName = 'Green';
-        else if (hue < 190) baseColorName = 'Teal';
-        else if (hue < 260) baseColorName = 'Blue';
-        else if (hue < 300) baseColorName = 'Indigo';
-        else if (hue < 345) baseColorName = 'Purple';
+    if (getState().paletteMode === 'oklch') {
+        const h = getState().oklchHue !== undefined ? (getState().oklchHue as number) : 0;
+        if (h < 15 || h >= 345) baseColorName = 'Red';
+        else if (h < 45) baseColorName = 'Orange';
+        else if (h < 75) baseColorName = 'Yellow';
+        else if (h < 150) baseColorName = 'Green';
+        else if (h < 190) baseColorName = 'Teal';
+        else if (h < 260) baseColorName = 'Blue';
+        else if (h < 300) baseColorName = 'Indigo';
+        else if (h < 345) baseColorName = 'Purple';
         else baseColorName = 'Red';
     } else {
-        baseColorName = getColorName(hexToFigmaRgb(safeAnchor?.hex || state.baseColor));
+        baseColorName = getColorName(hexToFigmaRgb(safeAnchor?.hex || getState().baseColor));
     }
 
     // Filter Swatches (No pure white/black)
@@ -1207,7 +1229,7 @@ function getPayload(isUpdate: boolean): FigmaExportPayload {
 
     const finalSwatches = activeSwatches.map(s => {
         const rgb = hexToFigmaRgb(s.hex);
-        const contrast = wcagContrast(s.hex, getContrastBackground(state.theme));
+        const contrast = wcagContrast(s.hex, getContrastBackground(getState().theme));
         return {
             stop: s.stop,
             hex: s.hex,
@@ -1226,23 +1248,24 @@ function getPayload(isUpdate: boolean): FigmaExportPayload {
         createVariables: false, // Default, overridden by caller
         swatches: finalSwatches,
         action: action,
-        paletteId: selectedPaletteId || undefined
+        paletteId: getState().selectedPaletteId || undefined
     };
 }
 
-// 1. SAVE VARIABLES HANDLER
-btnSaveVars?.addEventListener('click', () => {
-    const isUpdate = !!(originalPaletteData && selectedPaletteId);
+// 1. FOOTER: VARIABLES HANDLER (Dynamic Create/Update)
+getEl<HTMLButtonElement>('btn-variables')?.addEventListener('click', () => {
+    const state = computeUIState();
+    const isUpdate = state === 'edit';
     const payload = getPayload(isUpdate);
+
+    if (!isUpdate) {
+        // Track the name we're about to create to auto-select it later
+        (window as any)._pendingPaletteSelection = payload.name;
+    }
 
     // Config for Variables
     payload.createVariables = true;
     payload.createFrame = false;
-
-    // Force 'create' action if we are just saving a new palette's variables (not updating existing)
-    // But getPayload sets handled isUpdate. 
-    // code.ts `if (payload.action === 'update')` handles the update logic.
-    // If it's a new palette (isUpdate false), it falls through to default create logic.
 
     parent.postMessage({
         pluginMessage: {
@@ -1250,6 +1273,28 @@ btnSaveVars?.addEventListener('click', () => {
             payload: payload
         }
     }, '*');
+});
+
+// 2. FOOTER: CANVAS HANDLER
+const handleCanvasClick = () => {
+    // Template creation is always a "create" action for the frame
+    const payload = getPayload(false); // Force create mode
+    payload.createVariables = false;
+    payload.createFrame = true;
+
+    parent.postMessage({
+        pluginMessage: {
+            type: 'EXPORT_TO_FIGMA',
+            payload: payload
+        }
+    }, '*');
+};
+
+getEl<HTMLButtonElement>('btn-canvas')?.addEventListener('click', handleCanvasClick);
+
+// 3. FOOTER: RESET HANDLER
+getEl<HTMLButtonElement>('btn-reset')?.addEventListener('click', () => {
+    (window as any).resetPlugin(); // Use global helper if available or local resetPlugin
 });
 
 // Robust Copy to Clipboard (V 0.0.84)
@@ -1288,7 +1333,7 @@ anchorSwatchTrigger?.addEventListener('click', async () => {
             const eyeDropper = new EyeDropper();
             const result = await eyeDropper.open();
             if (result.sRGBHex) {
-                state.baseColor = result.sRGBHex;
+                getState().baseColor = result.sRGBHex;
                 syncColorInputs('hex');
                 update();
             }
@@ -1301,94 +1346,294 @@ anchorSwatchTrigger?.addEventListener('click', async () => {
     }
 });
 
-// Anchor Copy: Figma-style notification
-copyAnchorBtn?.addEventListener('click', () => {
-    const val = state.baseColor.toUpperCase();
-    copyToClipboard(val);
-    parent.postMessage({ pluginMessage: { type: 'NOTIFY', message: 'Hex code copied!' } }, '*');
-});
+// Anchor Copy listener moved to top (lines ~814) to be near other listeners and avoid duplication.
+// Removed dead code for 'copy-anchor-hex' ID which does not exist.
 
-// 2. CREATE TEMPLATE HANDLER
-btnCreateTemplate?.addEventListener('click', () => {
-    // Template creation is always a "create" action for the frame
-    // We do NOT want to trigger the 'update' logic in code.ts which returns early.
-    const payload = getPayload(false); // Force create mode
-
-    payload.createVariables = false;
-    payload.createFrame = true;
-
-    parent.postMessage({
-        pluginMessage: {
-            type: 'EXPORT_TO_FIGMA',
-            payload: payload
-        }
-    }, '*');
-});
+// CREATE TEMPLATE HANDLER (Kept for search compatibility if needed, but we used footer listeners above)
 
 window.onmessage = (event) => {
     const msg = event.data.pluginMessage;
     if (msg.type === 'SET_BASE_COLOR') {
-        state.baseColor = msg.hex;
-        state.overrides = {};
+        getState().baseColor = msg.hex;
+        getState().overrides = {};
         if (colorInput) colorInput.value = msg.hex;
         if (colorPicker) colorPicker.value = msg.hex;
         update();
     } else if (msg.type === 'PALETTES_DATA') {
         // V 0.0.80: Receive detected palettes from Figma
-        detectedPalettes = msg.palettes || [];
+        console.log("UI: Received PALETTES_DATA", msg.palettes);
+        getState().detectedPalettes = msg.palettes || [];
+
+        const s = getState();
+        const pendingSelection = (window as any)._pendingPaletteSelection;
+
+        if (pendingSelection) {
+            // Find the newly created palette
+            const match = s.detectedPalettes.find(p => p.hueName.startsWith(pendingSelection));
+            if (match) {
+                delete (window as any)._pendingPaletteSelection;
+                delete (window as any)._isCreatingManual;
+                selectPalette(match.hueName);
+                return;
+            }
+        }
+
+        // V 0.0.90: Strict State Management - Sync Data
+        if (s.selectedPaletteId) {
+            const current = s.detectedPalettes.find(p => p.hueName === s.selectedPaletteId);
+            if (current) {
+                s.originalPaletteData = current.stops.map(st => ({ stop: st.stop, hex: st.hex }));
+
+                // V 1.1.0: Robust case-insensitive comparison
+                const uiHexes = s.lastSwatches.map(x => x.hex.toLowerCase());
+                const figmaHexes = current.stops.map(x => x.hex.toLowerCase());
+
+                const isMatching = JSON.stringify(uiHexes) === JSON.stringify(figmaHexes);
+                if (isMatching) {
+                    s.isDirty = false;
+                    // Update synced state to match current
+                    StateManager.commit();
+                }
+            } else {
+                // V 0.0.92: ORPHANED PALETTE PROTECTION
+                // Selected palette is no longer in Figma's variables!
+                // We keep the working state but switch context to "Creation"
+                console.warn(`Selected palette ${s.selectedPaletteId} was deleted in Figma. Switching to creation mode.`);
+                s.selectedPaletteId = null;
+                s.syncedState = null;
+                StateManager.checkDirty(); // Recalculate dirty against INITIAL_STATE
+                parent.postMessage({ pluginMessage: { type: 'NOTIFY', message: 'Original palette deleted. You can save this as a new one.' } }, '*');
+            }
+        }
+
+        // Auto-select first palette on boot REMOVED to defaulting to View Mode (State 2)
+        // if (!s.selectedPaletteId && s.detectedPalettes.length > 0 && !(window as any)._isCreatingManual) {
+        //    selectPalette(s.detectedPalettes[0].hueName);
+        // } else {
         renderPaletteSidebar();
+        update();
     }
-};
+}
+
 
 /**
  * Renders the palette sidebar with detected palettes (V 0.0.80)
  */
 function renderPaletteSidebar() {
+    const s = getState();
     const sidebar = document.getElementById('palette-sidebar');
-    if (!palettePillsContainer || !sidebar) return;
+    if (!sidebar) return;
 
-    // V 0.0.80: Hide sidebar if no palettes exist (User Request)
-    if (detectedPalettes.length === 0) {
+    const uiState = computeUIState();
+
+    // Only show "Color palettes" row in Default mode (View mode)
+    // In Create/Edit mode, we hide it to avoid duplication or clutter
+    if (s.detectedPalettes.length === 0 || uiState !== 'default') {
         sidebar.style.display = 'none';
         return;
     } else {
         sidebar.style.display = 'flex';
     }
 
-    // Clear existing pills
-    palettePillsContainer.innerHTML = '';
+    const newSidebar = createPaletteSelector({
+        palettes: s.detectedPalettes,
+        selectedId: s.selectedPaletteId,
+        onSelect: (id: string) => selectPalette(id),
+        onAdd: () => {
+            // Take snapshot of current state before clearing for creation
+            const snapshot = {
+                prevId: s.selectedPaletteId,
+                prevHue: s.oklchHue,
+                prevVividness: s.oklchVividness,
+                prevColor: s.baseColor
+            };
+            (window as any)._creationSnapshot = snapshot;
 
-    // Render each detected palette as a pill
-    detectedPalettes.forEach((palette) => {
-        const pill = document.createElement('button');
-        pill.className = 'palette-pill';
-        if (selectedPaletteId === palette.hueName) {
-            pill.classList.add('palette-pill--active');
+            setState({
+                selectedPaletteId: null,
+                originalPaletteData: null,
+                isDirty: false,
+                overrides: {},
+                stops: [100, 200, 300, 400, 500, 600, 700, 800, 900],
+                // Reset to defaults for a "New Palette" feel
+                oklchHue: 297,
+                oklchVividness: 1,
+                baseColor: '#9600FF'
+            });
+
+            // Refresh UI
+            update();
+            initializeSliders();
+            renderPaletteSidebar();
+        },
+        onCancel: () => {
+            const snapshot = (window as any)._creationSnapshot;
+            // Clear manual creation flag so we don't get stuck
+            delete (window as any)._isCreatingManual;
+
+            if (snapshot && snapshot.prevId) {
+                // Restore previous palette exactly
+                setState({
+                    oklchHue: snapshot.prevHue,
+                    oklchVividness: snapshot.prevVividness,
+                    baseColor: snapshot.prevColor
+                });
+                selectPalette(snapshot.prevId);
+            } else if (s.detectedPalettes.length > 0) {
+                // Fallback to first palette
+                selectPalette(s.detectedPalettes[0].hueName);
+            } else {
+                update();
+            }
+            delete (window as any)._creationSnapshot;
         }
-        pill.style.backgroundColor = palette.previewHex;
-        pill.title = palette.hueName;
-
-        pill.onclick = () => {
-            selectPalette(palette.hueName);
-        };
-
-        palettePillsContainer.appendChild(pill);
     });
+
+    sidebar.replaceWith(newSidebar);
+
+    // Re-initialize icons for the new sidebar elements
+    createIcons({
+        icons: {
+            Plus,
+            ChevronDown,
+            Pencil
+        }
+    });
+}
+
+function renderHeaderExpansion() {
+    const state = getState();
+    const hasTokens = state.detectedPalettes.length > 0;
+    const isExpanded = state.isHeaderExpanded;
+    const hasSelection = !!state.selectedPaletteId;
+
+    // Compute header state
+    type HeaderState = 'create-no-tokens' | 'default' | 'edit' | 'create-with-tokens';
+    let headerState: HeaderState;
+
+    if (!hasTokens) {
+        headerState = 'create-no-tokens';
+        // Note: We don't force isHeaderExpanded here anymore.
+        // The state should already be expanded by INITIAL_STATE or explicitly set.
+    } else if (!isExpanded) {
+        headerState = 'default';
+    } else if (hasSelection) {
+        headerState = 'edit';
+    } else {
+        headerState = 'create-with-tokens';
+    }
+
+    // Apply state to body for CSS selectors
+    document.body.setAttribute('data-header-state', headerState);
+
+    // Handle expandable container classes
+    const shouldExpand = headerState !== 'default';
+    if (expandableSettings) {
+        if (shouldExpand) {
+            expandableSettings.classList.remove('collapsed');
+            expandableSettings.classList.add('expanded');
+        } else {
+            expandableSettings.classList.remove('expanded');
+            expandableSettings.classList.add('collapsed');
+        }
+    }
+
+    // Handle top header collapsed class
+    if (topHeader) {
+        if (shouldExpand) {
+            topHeader.classList.remove('collapsed');
+        } else {
+            topHeader.classList.add('collapsed');
+        }
+    }
+
+    // Update status row content based on state
+    const statusLabel = document.getElementById('status-label');
+    const statusColorDot = document.getElementById('status-color-dot') as HTMLElement;
+    const statusColorName = document.getElementById('status-color-name') as HTMLInputElement;
+
+    if (statusLabel && statusColorDot && statusColorName) {
+        if (headerState === 'edit' && state.selectedPaletteId) {
+            // Editing existing palette
+            statusLabel.textContent = 'Editing palette:';
+            const palette = state.detectedPalettes.find(p => p.hueName === state.selectedPaletteId);
+            if (palette) {
+                statusColorName.value = palette.hueName;
+            }
+            // Always use current baseColor for live preview
+            statusColorDot.style.background = state.baseColor;
+        } else {
+            // Creating new palette
+            statusLabel.textContent = 'Creating new palette';
+            statusColorName.value = getColorName(hexToFigmaRgb(state.baseColor));
+            statusColorDot.style.background = state.baseColor;
+        }
+    }
+
+    // VISIBILITY ENFORCEMENT
+    const statusRow = document.getElementById('status-row');
+    const editToggle = document.getElementById('edit-palette-toggle');
+    const sidebar = document.getElementById('palette-sidebar');
+
+    switch (headerState) {
+        case 'create-no-tokens': // State 1
+            if (statusRow) statusRow.style.display = 'flex';
+            // Hide edit toggle in fresh state as there is nothing to edit/cancel back to
+            if (editToggle) editToggle.style.display = 'none';
+            if (sidebar) sidebar.style.display = 'none';
+            break;
+
+        case 'default': // State 2 (View Mode)
+            if (statusRow) statusRow.style.display = 'none';
+            if (editToggle) editToggle.style.display = 'flex'; // Show Pencil
+            if (sidebar) sidebar.style.display = 'flex';
+            break;
+
+        case 'edit': // State 3 (Edit Mode)
+            if (statusRow) statusRow.style.display = 'flex';
+            if (editToggle) editToggle.style.display = 'flex'; // Show Cancel
+            if (sidebar) sidebar.style.display = 'none';
+            break;
+
+        case 'create-with-tokens': // State 4 (Add Mode)
+            if (statusRow) statusRow.style.display = 'flex';
+            if (editToggle) editToggle.style.display = 'flex'; // Show Cancel
+            if (sidebar) sidebar.style.display = 'none';
+            break;
+    }
+
+    // Re-initialize icons for button states logic (Pencil vs X) handled by CSS via data-header-state
+    // But we need to ensure the correct icons are available if DOM was rebuilt
+    if (editToggle) {
+        createIcons({
+            icons: { Pencil, X },
+            nameAttr: 'data-lucide',
+            attrs: {
+                class: "icon-svg",
+                style: "width: 14px; height: 14px;"
+            }
+        });
+    }
 }
 
 /**
  * Selects a palette from the sidebar and loads it into the editor (V 0.0.80)
  */
 function selectPalette(hueName: string) {
-    const palette = detectedPalettes.find(p => p.hueName === hueName);
+    const palette = getState().detectedPalettes.find(p => p.hueName === hueName);
     if (!palette) return;
 
     // Update selection state
-    selectedPaletteId = hueName;
+    const s = getState();
+    s.selectedPaletteId = hueName;
+    s.isDirty = false;
 
     // Store original data for dirty-checking
-    originalPaletteData = palette.stops.map(s => ({ stop: s.stop, hex: s.hex }));
-    isDirty = false;
+    s.originalPaletteData = palette.stops.map(s => ({ stop: s.stop, hex: s.hex }));
+
+    // Auto-expand header removed per user request
+    // s.isHeaderExpanded = true;
+    // renderHeaderExpansion();
 
     // LOAD PALETTE INTO EDITOR
     // 1. Find the 500 stop (or closest) to use as "Anchor"
@@ -1396,53 +1641,57 @@ function selectPalette(hueName: string) {
         || palette.stops[Math.floor(palette.stops.length / 2)]
         || palette.stops[0];
 
-    state.baseColor = anchorStop.hex;
-    state.anchorStop = anchorStop.stop;
+    getState().baseColor = anchorStop.hex;
+    getState().anchorStop = anchorStop.stop;
 
     // 2. Set stops based on what's in the palette
-    state.stops = palette.stops.map(s => s.stop).sort((a, b) => a - b);
+    getState().stops = palette.stops.map(s => s.stop).sort((a, b) => a - b);
 
     // 3. Set Overrides for EVERYTHING to ensure fidelity
     // This treats existing tokens as "locked" values unless manually changed by the user.
-    state.overrides = {};
+    getState().overrides = {};
     palette.stops.forEach(s => {
-        state.overrides[s.stop] = { mode: 'lch', ...lch(s.hex) }; // Store LCH as override reference
+        getState().overrides[s.stop] = { mode: 'lch', ...lch(s.hex) }; // Store LCH as override reference
     });
 
     // 4. Update UI Inputs
-    // 4. Update UI Inputs
-    if (colorInput) colorInput.value = state.baseColor;
-    if (colorPicker) colorPicker.value = state.baseColor;
+    if (colorInput) colorInput.value = getState().baseColor;
+    if (colorPicker) colorPicker.value = getState().baseColor;
+    if (anchorDisplay) anchorDisplay.innerText = getState().baseColor;
 
     // SYNC SLIDERS TO SELECTED PALETTE
-    const baseOklch = oklch(state.baseColor);
+    const baseOklch = oklch(getState().baseColor);
     if (baseOklch) {
-        state.oklchHue = baseOklch.h || 0;
-        state.oklchVividness = (baseOklch.c || 0) / 0.4;
+        getState().oklchHue = baseOklch.h || 0;
+        getState().oklchVividness = (baseOklch.c || 0) / 0.4;
     }
+
+    // V 0.0.90: Commit the loaded state as the "Synced" baseline
+    StateManager.commit();
 
     // 5. Sync & Update
     syncColorInputs('hex');
     update();
 
-    // Re-render sidebar to highlight selection
     renderPaletteSidebar();
 }
-
-// Request palettes on boot (V 0.0.80)
-parent.postMessage({ pluginMessage: { type: 'GET_PALETTES' } }, '*');
 
 // Add palette button handler
 if (addPaletteBtn) {
     addPaletteBtn.onclick = () => {
         // Clear selection for "new palette" mode
-        selectedPaletteId = null;
-        originalPaletteData = null;
-        isDirty = false;
+        getState().selectedPaletteId = null;
+        getState().originalPaletteData = null;
+        getState().isDirty = false;
+        (window as any)._isCreatingManual = true;
 
         // Reset overrides to unlock the generator
-        state.overrides = {};
-        state.stops = [...STANDARD_STOPS];
+        getState().overrides = {};
+        getState().stops = [...[100, 200, 300, 400, 500, 600, 700, 800, 900]];
+
+        // Auto-expand header for creation
+        getState().isHeaderExpanded = true;
+        renderHeaderExpansion();
 
         renderPaletteSidebar();
         update();
@@ -1453,37 +1702,9 @@ if (addPaletteBtn) {
  * Checks if current state differs from the loaded palette (V 0.0.80)
  */
 function checkDirty() {
-    if (!originalPaletteData) {
-        if (isDirty) { // Only update if changing state
-            isDirty = false;
-            updateButtonState();
-        }
-        return;
-    }
-
-    const currentSwatches = getSwatches();
-
-    // Quick length check
-    if (currentSwatches.length !== originalPaletteData.length) {
-        isDirty = true;
-        updateButtonState();
-        return;
-    }
-
-    // Deep compare hex values
-    let hasChanges = false;
-    for (const originalStop of originalPaletteData) {
-        const match = currentSwatches.find(s => s.stop === originalStop.stop);
-        if (!match || match.hex.toUpperCase() !== originalStop.hex.toUpperCase()) {
-            hasChanges = true;
-            break;
-        }
-    }
-
-    if (isDirty !== hasChanges) {
-        isDirty = hasChanges;
-        updateButtonState();
-    }
+    // V 0.0.90: Delegate to StateManager
+    StateManager.checkDirty();
+    updateButtonState();
 }
 
 /**
@@ -1492,19 +1713,122 @@ function checkDirty() {
 /**
  * Updates the Save Variables button text based on state (V 0.0.80)
  */
-function updateButtonState() {
-    if (!btnSaveVars) return;
-    const btnText = document.getElementById('btn-text-vars');
-    if (!btnText) return;
 
-    if (originalPaletteData) {
-        // Variables exist (either saved or dirty)
-        btnText.innerHTML = `Update variables`;
+
+function computeUIState(): 'create-no-tokens' | 'default' | 'edit' | 'create-with-tokens' {
+    const s = getState();
+    const hasTokens = s.detectedPalettes.length > 0;
+    const isExpanded = s.isHeaderExpanded;
+    const hasSelection = !!s.selectedPaletteId;
+
+    if (!hasTokens) {
+        return 'create-no-tokens';
+    } else if (!isExpanded) {
+        return 'default';
+    } else if (hasSelection) {
+        return 'edit';
     } else {
-        // Creating new palette variables
-        btnText.innerHTML = `Generate variables`;
+        return 'create-with-tokens';
     }
 }
+
+function applyUIState() {
+    const uiState = computeUIState();
+    const s = getState();
+    document.body.setAttribute('data-ui-state', uiState);
+
+    if (!footerContainer) return;
+
+    // Clear and re-render footer based on state
+    footerContainer.innerHTML = '';
+    const footerRow = document.createElement('div');
+    footerRow.className = 'footer-row footer-state-active';
+
+    if (uiState === 'default') {
+        const btn = createButton({
+            id: 'btn-footer-canvas-full',
+            text: 'Create palette on canvas',
+            icon: 'figma-logo',
+            variant: 'secondary',
+            className: 'w-full',
+            onClick: () => (window as any).createSelectionOnCanvas()
+        });
+        footerRow.appendChild(btn);
+    } else {
+        // Multi-action: Canvas | Variables | Reset
+        // Applicable for: create-no-tokens, edit, create-with-tokens
+
+        const canvasBtn = createButton({
+            id: 'btn-footer-canvas',
+            text: 'Create on canvas',
+            icon: 'figma-logo',
+            variant: 'secondary',
+            className: 'w-full',
+            onClick: () => (window as any).createSelectionOnCanvas()
+        });
+
+        const variablesBtn = createButton({
+            id: 'btn-footer-variables',
+            text: uiState === 'edit' ? 'Update variables' : 'Create variables',
+            icon: 'palette',
+            variant: 'primary',
+            className: 'w-full',
+            disabled: uiState === 'edit' ? !s.isDirty : false,
+            onClick: () => (window as any).exportToFigma()
+        });
+
+        // Reset Button Visibility Logic
+        // State 1 (fresh): Explicitly NO reset button in design? Or maybe standard. Screenshot 4 has it.
+        // State 3 (edit): Only if Dirty? Screenshot 3 "No changes" has NO reset button.
+        // State 3 (edit, dirty): "Changes happen" has reset button.
+
+
+        // Actually, screenshot 1 (Fresh) DOES show the reset circle.
+        // Screenshot 3 (Edit Clean) does NOT show it.
+        // Screenshot 3 (Edit Dirty) DOES show it.
+
+        const shouldShowReset = uiState === 'edit' ? s.isDirty : true;
+
+        footerRow.appendChild(canvasBtn);
+        footerRow.appendChild(variablesBtn);
+
+        if (shouldShowReset) {
+            const resetBtn = createButton({
+                id: 'btn-footer-reset',
+                icon: 'refresh-cw',
+                variant: 'ghost', // circle/ghost variant
+                title: 'Discard changes',
+                onClick: () => resetPlugin() // Use the safe reset
+            });
+            footerRow.appendChild(resetBtn);
+        }
+    }
+
+    footerContainer.appendChild(footerRow);
+
+    // Re-run Lucide on footer items
+    createIcons({
+        icons: { Palette, RefreshCw, Globe },
+        nameAttr: 'data-lucide',
+        attrs: { width: 16, height: 16 }
+    });
+}
+
+function updateButtonState() {
+    applyUIState();
+}
+
+// Add event listener helper for dynamic palette selector
+// This is to ensure we don't rely only on inline onclicks if something strips them
+document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    const pill = target.closest('.palette-pill');
+    if (pill && (pill as HTMLElement).title) {
+        // We handle this via inline onclick, but this is a backup / debug
+        // console.log('Pill clicked via delegation:', (pill as HTMLElement).title);
+    }
+});
+
 
 
 
@@ -1513,46 +1837,40 @@ function updateButtonState() {
 // ==============================================================================
 
 function setThemeUI(theme: 'light' | 'dark') {
-    state.theme = theme;
+    getState().theme = theme;
     document.body.classList.toggle('light-theme', theme === 'light');
 
     update();
 
-    // CRITICAL: Use requestAnimationFrame to ensure createIcons() has finished
-    // Lucide's createIcons() replaces <i> tags with SVG asynchronously
-    // We need to wait for the next frame to ensure DOM manipulation is complete
+    // Toggle visibility of moon/sun controllers
     requestAnimationFrame(() => {
-        const currentThemeIconLight = getEl<HTMLElement>('theme-icon-light');
-        const currentThemeIconDark = getEl<HTMLElement>('theme-icon-dark');
+        const moonController = document.getElementById('theme-thumb-moon');
+        const sunController = document.getElementById('theme-thumb-sun');
 
-        // Update Icons: Sun in Light, Moon in Dark
         if (theme === 'light') {
-            if (currentThemeIconLight) currentThemeIconLight.style.display = 'block';  // Sun
-            if (currentThemeIconDark) currentThemeIconDark.style.display = 'none';    // Moon hidden
+            // Light mode: show sun, hide moon
+            if (sunController) sunController.style.opacity = '1';
+            if (moonController) moonController.style.opacity = '0';
         } else {
-            if (currentThemeIconLight) currentThemeIconLight.style.display = 'none';  // Sun hidden
-            if (currentThemeIconDark) currentThemeIconDark.style.display = 'block';   // Moon
+            // Dark mode: show moon, hide sun
+            if (sunController) sunController.style.opacity = '0';
+            if (moonController) moonController.style.opacity = '1';
         }
     });
 }
 
 function toggleTheme() {
-    setThemeUI(state.theme === 'dark' ? 'light' : 'dark');
+    setThemeUI(getState().theme === 'dark' ? 'light' : 'dark');
 }
 
 if (themeToggleBtn) {
-    themeToggleBtn.onclick = toggleTheme;
+    (themeToggleBtn as HTMLButtonElement).onclick = toggleTheme;
 }
 
 // Initial Theme Check
-setThemeUI(state.theme);
+setThemeUI(getState().theme);
 
-// Reset handler
-if (resetBtn) {
-    resetBtn.onclick = () => {
-        resetPlugin();
-    };
-}
+// Reset handler removed (now in footer)
 
 // Global Tooltip Management - V 0.0.71 (Refined Persistence)
 const tooltipTrigger = document.getElementById('gen-mode-help');
@@ -1622,27 +1940,48 @@ if (tooltipTrigger && globalTooltip) {
     globalTooltip.onmouseleave = startHideTimeout;
 }
 
-function resetPlugin() {
-    // Reset state
-    state = JSON.parse(JSON.stringify(INITIAL_STATE));
+export function resetPlugin() {
+    (window as any).resetPlugin = resetPlugin;
+    const s = getState();
 
-    // Clear animation and modal states
-    lastAddedStop = null;
-    activeStop = null;
-    if (modal) modal.classList.add('hidden');
+    // Context-Aware Reset: 
+    // If editing -> Discard Changes (Revert to Synced State)
+    // If creating -> Factory Reset
 
-    // Reset DOM elements handled by sync
-    if (colorInput) colorInput.value = state.baseColor;
-    if (colorPicker) colorPicker.value = state.baseColor;
+    if (s.selectedPaletteId && s.syncedState) {
+        // Discard Changes Logic
+        StateManager.reset();
 
-    // Standardize UI
-    syncColorInputs('hex');
-    setMode(state.paletteMode);
+        // We must re-render the UI based on the reverted state
+        // restore inputs
+        if (colorInput) colorInput.value = getState().baseColor;
+        if (colorPicker) colorPicker.value = getState().baseColor;
 
-    // Update Theme UI
-    setThemeUI(state.theme);
+        // Re-calculate sliders based on reverted OKLCH/BaseColor
+        syncColorInputs('hex');
+        initializeSliders();
+        setMode(getState().paletteMode || 'oklch');
 
-    // Reset UI
+    } else {
+        // Factory Reset (Creation Mode)
+        StateManager.reset();
+
+        getState().lastAddedStop = null;
+        getState().activeStop = null;
+        if (modal) modal.classList.add('hidden');
+
+        // Reset DOM elements
+        if (colorInput) colorInput.value = getState().baseColor;
+        if (colorPicker) colorPicker.value = getState().baseColor;
+
+        syncColorInputs('hex');
+        setMode(getState().paletteMode || 'oklch');
+
+        // Ensure theme UI matches
+        setThemeUI(getState().theme);
+    }
+
+    // Common finalizer
     update();
 }
 
@@ -1652,13 +1991,57 @@ function resetPlugin() {
 
 // Initial mode and UI sync
 if (typeof APP_VERSION !== 'undefined') {
-    const versionEl = document.querySelector('.version-text');
+    const versionEl = document.querySelector('.version-tag');
     if (versionEl) versionEl.textContent = `V ${APP_VERSION}`;
 }
 
+// V 0.0.91: System Theme Sync
+const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+const initialTheme = systemDark.matches ? 'dark' : 'light';
+setThemeUI(initialTheme);
+
+systemDark.addEventListener('change', (e) => {
+    const newTheme = e.matches ? 'dark' : 'light';
+    setThemeUI(newTheme);
+});
+
+// Chevron Toggle Binding
+if (editPaletteToggle) {
+    editPaletteToggle.onclick = () => {
+        const s = getState();
+        const isExpanded = s.isHeaderExpanded;
+
+        if (isExpanded) {
+            // "Cancel" Action: Revert changes and collapse
+            // Optionally discard dirty changes
+            if (s.isDirty && s.syncedState) {
+                StateManager.reset();
+            }
+
+            // Clear selection to return to View mode (State 2)
+            s.selectedPaletteId = null;
+            s.syncedState = null;
+            s.originalPaletteData = null;
+            s.isDirty = false;
+            s.isHeaderExpanded = false;
+        } else {
+            // "Edit" Action: Expand (but don't select anything yet)
+            s.isHeaderExpanded = true;
+        }
+
+        renderHeaderExpansion();
+        update(); // Ensure full UI refresh
+        renderPaletteSidebar(); // Sync sidebar visibility
+    };
+}
+
+renderHeaderExpansion();
 syncColorInputs('hex'); // Alignment hex -> sliders
 initializeSliders(); // Initialize all sliders and UI elements with state values
-setMode(state.paletteMode); // This calls update() internally
+// Request palettes on launch
+parent.postMessage({ pluginMessage: { type: 'GET_PALETTES' } }, '*');
+
+setMode(getState().paletteMode || 'oklch'); // This calls update() internally
 // tokensToggle?.classList.remove('active'); // Explicitly force off on boot
 
 // Dynamic Resizing Logic
