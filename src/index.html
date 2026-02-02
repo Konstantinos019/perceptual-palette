@@ -42,166 +42,156 @@
 
 
   <div class="plugin-container">
-    <!-- SETTINGS CARD (Top) -->
-    <div class="params-card section-card" id="settings-card" style="flex-shrink: 0;">
-      <!-- GLOBAL HEADER -->
-      <div class="top-header-container">
-        <div class="header-main-block">
-          <div class="flex-row" style="flex: 1 0 0; gap: 6px; align-items: center;">
-            <div class="plugin-icon-box-small"
-              style="padding: 0; width: 32px; height: 32px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #9600FF; border-radius: 8px;">
-              <img src="./ui/assets/logo.png" alt="Logo" style="width: 32px; height: 32px; display: block;">
-            </div>
-            <div class="header-title-group">
-              <span class="brand-title-text">Perceptual Palette</span>
-              <span class="version-tag">V 1.0.3</span>
-            </div>
-          </div>
-
-          <button id="edit-palette-toggle" class="header-edit-btn" title="Edit Palette">
-            <span class="btn-text-edit">Edit palette</span>
-            <i data-lucide="pencil" class="icon-svg btn-icon-edit"></i>
-            <span class="btn-text-cancel">Cancel</span>
-            <i data-lucide="x" class="icon-svg btn-icon-cancel"></i>
-          </button>
-        </div>
-
-        <div class="header-mode-block">
-          <div class="mode-toggle-container">
-            <div id="theme-toggle" class="mode-switcher" title="Toggle Theme">
-              <div id="theme-thumb-moon" class="mode-controller" style="opacity: 0;">
-                <i data-lucide="moon" class="icon-svg"></i>
+    <!-- MAIN WRAPPABLE CARD GROUP (Settings + Results) -->
+    <div class="main-card-group section-card">
+      <!-- SETTINGS Section -->
+      <div class="params-card" id="settings-card" style="flex-shrink: 0;">
+        <!-- GLOBAL HEADER -->
+        <div class="top-header-container">
+          <div class="header-main-block">
+            <div class="flex-row" style="flex: 1 0 0; gap: 6px; align-items: center;">
+              <div class="plugin-icon-box-small"
+                style="padding: 0; width: 32px; height: 32px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #9600FF; border-radius: 8px;">
+                <img src="./ui/assets/logo.png" alt="Logo" style="width: 32px; height: 32px; display: block;">
               </div>
-              <div id="theme-thumb-sun" class="mode-controller active">
-                <i data-lucide="sun" class="icon-svg"></i>
+              <div class="header-title-group">
+                <span class="brand-title-text">Perceptual Palette</span>
+                <span class="version-tag">V 1.0.3</span>
               </div>
             </div>
+
+            <button id="edit-palette-toggle" class="header-edit-btn" title="Edit Palette">
+              <span class="btn-text-edit">Edit palette</span>
+              <i data-lucide="pencil" class="icon-svg btn-icon-edit"></i>
+              <span class="btn-text-cancel">Cancel</span>
+              <i data-lucide="x" class="icon-svg btn-icon-cancel"></i>
+            </button>
           </div>
-          <!-- Inverted curve - positioned per Figma: left:0, top:46px -->
-          <div class="inverted-curve">
-            <svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" viewBox="0 0 18.75 18.75"
-              fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M0 18.75H18.75C8.80888 18.75 0 10.6911 0 0.75L0 18.75Z" fill="currentColor" />
-              <!-- Bottom separator line to match header-main-block exactly -->
-              <path class="inverted-curve-stroke" d="M0 18.75L18.75 18.75" stroke-width="0.768" />
-            </svg>
+
+          <div class="header-mode-block">
+            <div class="mode-toggle-container">
+              <div id="theme-toggle" class="smart-switch" title="Toggle Theme">
+                <div id="theme-thumb" class="smart-switch__thumb">
+                  <!-- Light icon (sun) shown in light theme -->
+                  <i data-lucide="sun" id="theme-icon-light" class="icon-svg"></i>
+                  <!-- Dark icon (moon) shown in dark theme -->
+                  <i data-lucide="moon" id="theme-icon-dark" class="icon-svg" style="display:none"></i>
+                </div>
+              </div>
+            </div>
+            <!-- Inverted curve - positioned per Figma: left:0, top:46px -->
+            <div class="inverted-curve">
+              <svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" viewBox="0 0 18.75 18.75"
+                fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0 18.75H18.75C8.80888 18.75 0 10.6911 0 0.75L0 18.75Z" fill="currentColor" />
+                <!-- Bottom separator line to match header-main-block exactly -->
+                <path class="inverted-curve-stroke" d="M0 18.75L18.75 18.75" stroke-width="0.768" />
+              </svg>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- PALETTE SELECTOR (Visible only in Default/View Mode) -->
-      <div id="palette-sidebar" style="display: none;">
-        <!-- Dynamically populated by ui.ts -->
-      </div>
+        <!-- PALETTE SELECTOR (Visible only in Default/View Mode) -->
+        <div id="palette-sidebar" style="display: none;">
+          <!-- Dynamically populated by ui.ts -->
+        </div>
 
-      <!-- EXPANDABLE SETTINGS SECTION -->
-      <div id="expandable-settings" class="expandable-container collapsed">
-        <div class="color-tool" id="tool-generation">
+        <!-- EXPANDABLE SETTINGS SECTION -->
+        <div id="expandable-settings" class="expandable-container collapsed">
+          <div class="expandable-wrapper">
+            <div class="color-tool" id="tool-generation">
+              <div class="color-tool__header">
+                <div class="tooltip-wrapper">
+                  <span class="color-tool__label">Generation mode</span>
+                  <i data-lucide="help-circle" id="gen-mode-help" class="icon-svg"
+                    style="width: 14px; height: 14px; color: var(--text-tertiary); cursor: help;"></i>
+                </div>
+              </div>
+              <div class="color-tool__body">
+                <div id="mode-tabs-container" style="flex: 1;"></div>
+              </div>
+            </div>
+
+            <!-- Anchor Color Component -->
+            <div class="color-tool" id="tool-anchor">
+              <div class="color-tool__header">
+                <span class="color-tool__label">Anchor color</span>
+              </div>
+              <div class="color-tool__body anchor-refined-body-v4">
+                <!-- Hex + Edit Group (Pill Style) -->
+                <!-- Hex Input Wrapper (Gray Pill) -->
+                <div class="anchor-hex-wrapper">
+                  <input type="text" id="base-color-input" class="anchor-hex-input-native" value="#9600FF"
+                    spellcheck="false">
+                  <div class="anchor-hex-icon">
+                    <i data-lucide="copy" class="icon-svg" style="width: 14px; height: 14px;"></i>
+                  </div>
+                </div>
+
+                <!-- Hidden native picker -->
+                <input type="color" id="base-color-picker" class="color-picker__hidden" value="#9600FF">
+
+                <!-- Color Swatch Card -->
+                <div class="anchor-swatch-card" id="anchor-swatch-trigger" title="Current Color">
+                  <div id="color-preview-bg" class="anchor-swatch-bg-pure" style="background: #9600FF;"></div>
+                </div>
+              </div>
+            </div>
+
+
+            <div class="expandable-header">
+              <!-- Containers moved up to correct locations -->
+            </div>
+
+            <!-- OKLCH Controls (Toggled) -->
+            <div id="oklch-controls" style="display: contents;">
+              <div class="color-tool" id="tool-hue">
+                <div class="color-tool__header">
+                  <span class="color-tool__label">Hue</span>
+                </div>
+                <div class="color-tool__body">
+                  <div class="value-badge">
+                    <span id="oklch-hue-value">297°</span>
+                  </div>
+                  <div class="slider-wrapper hue-slider-wrapper">
+                    <input type="range" id="oklch-hue-slider" min="0" max="360" step="1" value="297">
+                  </div>
+                </div>
+              </div>
+
+              <div class="color-tool" id="tool-vividness">
+                <div class="color-tool__header">
+                  <span class="color-tool__label">Vividness</span>
+                </div>
+                <div class="color-tool__body">
+                  <div class="value-badge">
+                    <span id="oklch-vividness-value">100%</span>
+                  </div>
+                  <div class="slider-wrapper vivid-slider-wrapper">
+                    <input type="range" id="oklch-vividness-slider" min="0" max="100" step="1" value="100">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Status Row: Creating/Editing Palette Indicator -->
+        <div id="status-row" class="color-tool status-row">
           <div class="color-tool__header">
-            <div class="tooltip-wrapper">
-              <span class="color-tool__label">Generation mode</span>
-              <i data-lucide="help-circle" id="gen-mode-help" class="icon-svg"
-                style="width: 14px; height: 14px; color: var(--text-tertiary); cursor: help;"></i>
-            </div>
+            <span id="status-label" class="color-tool__label">Creating new palette</span>
           </div>
           <div class="color-tool__body">
-            <div id="mode-tabs-container" style="flex: 1;"></div>
-          </div>
-        </div>
-
-        <!-- Anchor Color Component -->
-        <div class="color-tool" id="tool-anchor">
-          <div class="color-tool__header">
-            <span class="color-tool__label">Anchor color</span>
-          </div>
-          <div class="color-tool__body anchor-refined-body-v4">
-            <!-- Hex + Edit Group (Pill Style) -->
-            <!-- Hex Input Wrapper (Gray Pill) -->
-            <div class="anchor-hex-wrapper">
-              <input type="text" id="base-color-input" class="anchor-hex-input-native" value="#9600FF"
-                spellcheck="false">
-              <!-- Using 'copy' icon as requested in design (or copy functionality) -->
-              <!-- But wait, user previously asked to 'edit'. This icon is just a trigger or decoration? -->
-              <!-- The screenshot shows overlapping squares. That is usually COPY. -->
-              <!-- But the Hex text is editable. -->
-              <!-- I will keep the listener on it? Or just make it visual? -->
-              <!-- The requested design has the icon inside the gray pill. -->
-              <div class="anchor-hex-icon">
-                <i data-lucide="copy" class="icon-svg" style="width: 14px; height: 14px;"></i>
-              </div>
-            </div>
-
-            <!-- Hidden native picker -->
-            <input type="color" id="base-color-picker" class="color-picker__hidden" value="#9600FF">
-
-            <!-- Color Swatch Card -->
-            <div class="anchor-swatch-card" id="anchor-swatch-trigger" title="Current Color">
-              <div id="color-preview-bg" class="anchor-swatch-bg-pure" style="background: #9600FF;"></div>
-            </div>
-          </div>
-        </div>
-
-
-        <div class="expandable-header">
-          <!-- Containers moved up to correct locations -->
-        </div>
-
-        <!-- OKLCH Controls (Toggled) -->
-        <div id="oklch-controls" style="display: contents;">
-          <div class="color-tool" id="tool-hue">
-            <div class="color-tool__header">
-              <span class="color-tool__label">Hue</span>
-            </div>
-            <div class="color-tool__body">
-              <div class="value-badge">
-                <span id="oklch-hue-value">297°</span>
-              </div>
-              <div class="slider-wrapper hue-slider-wrapper">
-                <input type="range" id="oklch-hue-slider" min="0" max="360" step="1" value="297">
-              </div>
-            </div>
-          </div>
-
-          <div class="color-tool" id="tool-vividness">
-            <div class="color-tool__header">
-              <span class="color-tool__label">Vividness</span>
-            </div>
-            <div class="color-tool__body">
-              <div class="value-badge">
-                <span id="oklch-vividness-value">100%</span>
-              </div>
-              <div class="slider-wrapper vivid-slider-wrapper">
-                <input type="range" id="oklch-vividness-slider" min="0" max="100" step="1" value="100">
-              </div>
+            <div class="status-name-wrapper">
+              <span id="status-color-dot" class="status-color-dot"></span>
+              <input type="text" id="status-color-name" class="status-name-input" value="Purple" spellcheck="false">
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Status Row: Creating/Editing Palette Indicator -->
-      <div id="status-row" class="color-tool status-row">
-        <div class="color-tool__header">
-          <span id="status-label" class="color-tool__label">Creating new palette</span>
-        </div>
-        <div class="color-tool__body">
-          <div class="status-name-wrapper">
-            <span id="status-color-dot" class="status-color-dot"></span>
-            <input type="text" id="status-color-name" class="status-name-input" value="Purple" spellcheck="false">
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- PALETTE SELECTOR (Visible only in Default/View Mode) -->
-    <div id="palette-sidebar" style="display: none;">
-      <!-- Dynamically populated by ui.ts -->
-    </div>
-
-    <!-- MAIN CONTENT AREA (Editor) -->
-    <div class="main-content-row">
       <!-- RESULTS / PALETTE TABLE -->
-      <div id="results-area" class="palette-container section-card">
+      <div id="results-area" class="palette-container">
         <div class="list-header">
           <!-- ui.ts injects header cells here -->
         </div>

@@ -10,6 +10,8 @@
 
   --color-gray-100: #f3f3f3;
   --color-gray-200: #ececec;
+  --color-gray-300: #dbdbdb;
+  --color-gray-400: #BDBDBD;
   --color-gray-500: #9E9E9E;
   --color-gray-800: #2C2C2C;
   --color-gray-900: #1E1E1E;
@@ -201,8 +203,8 @@ body:not(.light-theme) ::-webkit-scrollbar-thumb:hover {
   padding: 12px 16px;
   /* Figma: border only at bottom as separator */
   border: none;
-  border-bottom: 0.768px solid #ececec;
-  border-radius: 18px 18px 0 0;
+  border-bottom: 0.768px solid var(--border-subtle);
+  border-radius: 18px 18px 0 0 !important;
   /* Both top corners rounded as requested */
   position: relative;
   box-sizing: border-box;
@@ -212,10 +214,10 @@ body:not(.light-theme) ::-webkit-scrollbar-thumb:hover {
   transition: border-radius 0.3s ease;
 }
 
-/* Round all corners when collapsed to complete the card illusion */
+/* Explicitly only top-rounding for collapsed header too */
 .top-header-container.collapsed .header-main-block {
-  border-radius: 18px 18px 18px 18px;
-  border-bottom: none;
+  border-radius: 18px 18px 0 0 !important;
+  border-bottom: 0.768px solid var(--border-subtle) !important;
 }
 
 /* Header Mode Block - Theme Toggle Container */
@@ -239,68 +241,42 @@ body:not(.light-theme) ::-webkit-scrollbar-thumb:hover {
   border-radius: 0;
 }
 
-.mode-switcher {
-  background: #f3f3f3;
-  border: 1px solid #ececec;
-  border-radius: 12px;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  cursor: pointer;
-  box-sizing: border-box;
-}
-
-.inverted-curve-stroke {
-  stroke: #ececec;
-}
-
-body:not(.light-theme) .inverted-curve-stroke {
-  stroke: #404040;
-}
-
-.mode-controller {
-  background: white;
-  width: 24px;
+/* Smart Switch - V 0.0.74 */
+.smart-switch {
+  background: #F3F3F3;
+  width: 48px;
   height: 24px;
-  border-radius: 8px;
-  padding: 4px;
-  /* Figma: p-[4px] */
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+  border: 1px solid var(--color-gray-300);
+  flex-shrink: 0;
+  transition: background 0.2s ease;
+}
+
+body:not(.light-theme) .smart-switch {
+  background: #3D3D3D;
+  border-color: var(--border-subtle);
+}
+
+.smart-switch__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: #FFFFFF;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0px 0px 1.536px rgba(0, 0, 0, 0.11), 0px 2.303px 5.912px rgba(0, 0, 0, 0.12);
-  position: relative;
-  overflow: hidden;
-  transition: opacity 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.mode-controller::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: inset 0px -0.768px 1.459px rgba(0, 0, 0, 0.08);
-  pointer-events: none;
-}
-
-.mode-controller .icon-svg {
-  width: 14px;
-  height: 14px;
-  color: black;
-}
-
-/* Dark mode overrides for theme toggle */
-body:not(.light-theme) .mode-switcher {
-  background: #3D3D3D;
-  border-color: #4D4D4D;
-}
-
-body:not(.light-theme) .mode-controller {
+body:not(.light-theme) .smart-switch__thumb {
+  transform: translateX(24px);
   background: #636366;
-}
-
-body:not(.light-theme) .mode-controller .icon-svg {
   color: white;
 }
 
@@ -324,6 +300,10 @@ body:not(.light-theme) .mode-controller .icon-svg {
   height: 100%;
 }
 
+.inverted-curve-stroke {
+  stroke: var(--border-subtle);
+}
+
 /* Dark Mode Overrides for Magic Header */
 body:not(.light-theme) .header-main-block {
   background: #2C2C2C;
@@ -336,26 +316,33 @@ body:not(.light-theme) .inverted-curve {
 }
 
 
+/* Grid Transition Strategy */
 .expandable-container {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.4s ease,
+    padding-top 0.4s ease,
+    padding-bottom 0.4s ease;
   overflow: hidden;
-  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, padding 0.3s ease, transform 0.3s ease;
-  max-height: 1000px;
   opacity: 1;
-  transform-origin: top;
-  /* Solid background for mode-block effect */
   background: var(--bg-card);
   border: none;
-  border-radius: 0;
-  /* Removed rounding as status-row provides bottom corners */
+  border-top-right-radius: 18px;
 }
 
 .expandable-container.collapsed {
-  max-height: 0;
+  grid-template-rows: 0fr;
   opacity: 0;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
   pointer-events: none;
-  transform: scaleY(0.95);
+  /* Removed transform to allow natural grid collapse */
+}
+
+/* Wrapper for Grid Transition */
+.expandable-wrapper {
+  overflow: hidden;
+  min-height: 0;
+  /* Critical for grid */
 }
 
 .header-controls {
@@ -464,11 +451,15 @@ body:not(.light-theme) .header-edit-btn:hover {
 }
 
 [data-header-state="create-no-tokens"] #palette-sidebar {
-  display: none !important;
+  max-height: 0;
+  opacity: 0;
+  padding: 0;
+  pointer-events: none;
 }
 
 [data-header-state="create-no-tokens"] #status-row {
-  display: flex !important;
+  max-height: 200px;
+  opacity: 1;
 }
 
 /* State 2: default (View Mode) */
@@ -483,12 +474,16 @@ body:not(.light-theme) .header-edit-btn:hover {
 }
 
 [data-header-state="default"] #status-row {
-  display: none !important;
+  max-height: 0;
+  opacity: 0;
+  padding: 0;
+  pointer-events: none;
 }
 
 /* Ensure Expandable is collapsed */
 [data-header-state="default"] .expandable-container {
-  display: none;
+  grid-template-rows: 0fr;
+  opacity: 0;
 }
 
 /* State 3: edit (Edit Mode) & State 4: create-with-tokens */
@@ -509,7 +504,9 @@ body:not(.light-theme) .header-edit-btn:hover {
 [data-header-state="edit"] #status-row,
 [data-header-state="create-with-tokens"] #status-row,
 [data-header-state="create-no-tokens"] #status-row {
-  display: flex !important;
+  max-height: 120px;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* Status Row - Bottom of Settings Card */
@@ -520,9 +517,12 @@ body:not(.light-theme) .header-edit-btn:hover {
   gap: 14px;
   padding: 16px;
   background: white;
-  /* No border-top here to avoid double-border with previous .color-tool */
   border: none;
-  border-radius: 0 0 18px 18px;
+  border-radius: 0;
+  /* Removed radius to merge with list */
+  /* Transitions */
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
 }
 
 body:not(.light-theme) .status-row {
@@ -615,13 +615,16 @@ body:not(.light-theme) .status-color-dot {
 
 /* State: default - Collapsed, show Edit button, hide status row */
 [data-header-state="default"] .expandable-container {
-  max-height: 0;
+  grid-template-rows: 0fr;
   opacity: 0;
-  overflow: hidden;
 }
 
 [data-header-state="default"] #status-row {
-  display: none;
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  pointer-events: none;
 }
 
 [data-header-state="default"] .btn-text-cancel,
@@ -646,7 +649,11 @@ body:not(.light-theme) .status-color-dot {
 }
 
 [data-header-state="edit"] #palette-sidebar {
-  display: none;
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  pointer-events: none;
 }
 
 /* State: create-with-tokens - Show Cancel, show "Creating new palette" */
@@ -753,7 +760,7 @@ body:not(.light-theme) .brand-title-text {
 /* --- COMPONENT: SMART SWITCH (Unified) --- */
 .smart-switch {
   background: #f3f3f3;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--color-gray-300);
   border-radius: 12px;
   /* Standardized radius V 0.0.72 */
   width: 58px;
@@ -807,6 +814,7 @@ body:not(.light-theme) #theme-toggle #theme-thumb {
 /* Dark Mode Background for Toggle */
 body:not(.light-theme) .smart-switch {
   background: #252525;
+  border-color: var(--border-subtle);
 }
 
 .smart-switch__thumb .icon-svg {
@@ -947,8 +955,18 @@ body:not(.light-theme) .smart-switch.active {
   display: flex;
   flex-direction: column;
   width: 100%;
-  background: transparent;
-  /* Background on individual blocks */
+  background: var(--bg-card);
+  /* Unified background for the whole group */
+}
+
+/* Unified Main Card Group */
+.main-card-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  /* Ensure children don't overflow radius */
 }
 
 /* Settings Card */
@@ -1047,19 +1065,23 @@ body:not(.light-theme) .label-sm {
 
 /* Mode Tabs */
 .mode-tabs {
-  background: #f3f3f3;
+  background: #F3F3F3;
   padding: 4px;
-  border-radius: 12.284px;
+  /* Match smart-switch V 0.0.74 */
+  border-radius: 12px;
+  /* Match smart-switch */
   display: flex;
   position: relative;
   width: 100%;
-  max-width: 223.5px;
+  max-width: 180px;
+  /* Balance width V 0.0.77 */
   flex-shrink: 1;
+  /* Support small screens */
   user-select: none;
-  border: 0.768px solid #ececec;
-  height: 32px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  height: 34px;
+  /* Match smart-switch height */
   box-sizing: border-box;
-  align-items: center;
 }
 
 /* Dark Mode Track */
@@ -1073,13 +1095,15 @@ body:not(.light-theme) .mode-tabs {
   top: 4px;
   left: 4px;
   height: 24px;
+  /* Match smart-switch thumb height */
   width: calc(50% - 4px);
   background: #FFFFFF;
   border-radius: 8px;
-  box-shadow: 0px 0px 1.536px 0px rgba(0, 0, 0, 0.11), 0px 2.303px 5.912px 0px rgba(0, 0, 0, 0.12);
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Match smart-switch__thumb radius */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.1);
+  transition: transform 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
   pointer-events: none;
-  z-index: 1;
+  z-index: 0;
 }
 
 .mode-thumb::after {
@@ -1147,7 +1171,7 @@ body:not(.light-theme) .mode-tab.active {
 
 /* 1. Top rounding for the first row (Generation Mode) */
 #tool-generation {
-  border-radius: 18px 18px 0 0 !important;
+  border-radius: 0 18px 0 0 !important;
 }
 
 /* 2. Bottom rounding for the status row (last visible row) */
@@ -1929,13 +1953,15 @@ body:not(.light-theme) .btn--secondary-filled:hover {
 .palette-container {
   flex: 1;
   min-height: 0;
-  background: var(--bg-card);
-  border: none;
-  border-radius: 18px;
-  /* Use filter: drop-shadow to support transparency */
-  filter: drop-shadow(0px 1.536px 12.284px rgba(0, 0, 0, 0.08));
   overflow: hidden;
-  margin-top: 16px;
+  margin-top: 0;
+  /* Removed margin to merge with settings */
+  background: transparent;
+  /* Transparent to show group bg */
+  filter: none;
+  /* Removed filter */
+  border-radius: 0;
+  /* Removed radius */
 }
 
 .palette-list {
@@ -2388,24 +2414,35 @@ body:not(.light-theme) .btn--ghost-circle:hover {
   opacity: 0.4;
 }
 
-/* --- PALETTE SIDEBAR (V 0.0.80) --- */
+/* Main Content - Results Area */
 .main-content-row {
-  display: flex;
-  flex-direction: row;
-  gap: 14px;
   flex: 1;
+  /* Take remaining height */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* Container itself manages children */
   min-height: 0;
+  /* Crucial for scrolling */
 }
 
-.palette-sidebar {
-  display: flex !important;
+#palette-sidebar {
+  display: flex;
   width: 100%;
-  border-bottom: 0.768px solid #ececec;
-  padding-bottom: 4px;
-  margin-bottom: 4px;
+  background: white;
+  border-radius: 0;
+  /* Removed radius */
+  margin-bottom: 0;
+  border-bottom: none;
+  /* Smooth transitions */
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+  max-height: 80px;
+  opacity: 1;
 }
 
-body:not(.light-theme) .palette-sidebar {
+body:not(.light-theme) #palette-sidebar {
+  background: #2C2C2C;
   border-color: #333;
 }
 
@@ -2545,11 +2582,11 @@ body:not(.light-theme) .icon-btn-edit:hover {
     position: relative;
     display: flex;
     background: var(--bg-subtle);
-    border-radius: 9px;
+    border-radius: 12px;
     padding: 2px;
-    height: 32px;
+    height: 34px;
     width: 100%;
-    max-width: 220px;
+    max-width: 180px;
     /* Or fitting the parent */
     user-select: none;
     isolation: isolate;

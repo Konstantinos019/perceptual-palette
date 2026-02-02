@@ -1465,27 +1465,6 @@ function renderPaletteSidebar() {
             update();
             initializeSliders();
             renderPaletteSidebar();
-        },
-        onCancel: () => {
-            const snapshot = (window as any)._creationSnapshot;
-            // Clear manual creation flag so we don't get stuck
-            delete (window as any)._isCreatingManual;
-
-            if (snapshot && snapshot.prevId) {
-                // Restore previous palette exactly
-                setState({
-                    oklchHue: snapshot.prevHue,
-                    oklchVividness: snapshot.prevVividness,
-                    baseColor: snapshot.prevColor
-                });
-                selectPalette(snapshot.prevId);
-            } else if (s.detectedPalettes.length > 0) {
-                // Fallback to first palette
-                selectPalette(s.detectedPalettes[0].hueName);
-            } else {
-                update();
-            }
-            delete (window as any)._creationSnapshot;
         }
     });
 
@@ -1571,34 +1550,33 @@ function renderHeaderExpansion() {
     }
 
     // VISIBILITY ENFORCEMENT
-    const statusRow = document.getElementById('status-row');
     const editToggle = document.getElementById('edit-palette-toggle');
-    const sidebar = document.getElementById('palette-sidebar');
 
     switch (headerState) {
         case 'create-no-tokens': // State 1
-            if (statusRow) statusRow.style.display = 'flex';
-            // Hide edit toggle in fresh state as there is nothing to edit/cancel back to
+            // display handling moved to CSS via data-header-state
+            // if (statusRow) statusRow.style.display = 'flex';
             if (editToggle) editToggle.style.display = 'none';
-            if (sidebar) sidebar.style.display = 'none';
+            // if (sidebar) sidebar.style.display = 'none';
             break;
 
         case 'default': // State 2 (View Mode)
-            if (statusRow) statusRow.style.display = 'none';
+            // if (statusRow) statusRow.style.display = 'none';
             if (editToggle) editToggle.style.display = 'flex'; // Show Pencil
-            if (sidebar) sidebar.style.display = 'flex';
+            // if (sidebar) sidebar.style.display = 'flex';
             break;
 
         case 'edit': // State 3 (Edit Mode)
-            if (statusRow) statusRow.style.display = 'flex';
+            // if (statusRow) statusRow.style.display = 'flex';
             if (editToggle) editToggle.style.display = 'flex'; // Show Cancel
-            if (sidebar) sidebar.style.display = 'none';
+            // if (sidebar) sidebar.style.display = 'none';
             break;
 
         case 'create-with-tokens': // State 4 (Add Mode)
-            if (statusRow) statusRow.style.display = 'flex';
+            // if (statusRow) statusRow.style.display = 'flex';
             if (editToggle) editToggle.style.display = 'flex'; // Show Cancel
-            if (sidebar) sidebar.style.display = 'none';
+            // Sidebar should be visible when creating a new palette with tokens
+            // if (sidebar) sidebar.style.display = 'flex';
             break;
     }
 
@@ -1842,19 +1820,19 @@ function setThemeUI(theme: 'light' | 'dark') {
 
     update();
 
-    // Toggle visibility of moon/sun controllers
+    // CRITICAL: Use requestAnimationFrame to ensure createIcons() has finished
+    // Lucide's createIcons() replaces <i> tags with SVG asynchronously
     requestAnimationFrame(() => {
-        const moonController = document.getElementById('theme-thumb-moon');
-        const sunController = document.getElementById('theme-thumb-sun');
+        const currentThemeIconLight = document.getElementById('theme-icon-light');
+        const currentThemeIconDark = document.getElementById('theme-icon-dark');
 
+        // Update Icons: Sun in Light, Moon in Dark
         if (theme === 'light') {
-            // Light mode: show sun, hide moon
-            if (sunController) sunController.style.opacity = '1';
-            if (moonController) moonController.style.opacity = '0';
+            if (currentThemeIconLight) currentThemeIconLight.style.display = 'block';  // Sun
+            if (currentThemeIconDark) currentThemeIconDark.style.display = 'none';    // Moon hidden
         } else {
-            // Dark mode: show moon, hide sun
-            if (sunController) sunController.style.opacity = '0';
-            if (moonController) moonController.style.opacity = '1';
+            if (currentThemeIconLight) currentThemeIconLight.style.display = 'none';  // Sun hidden
+            if (currentThemeIconDark) currentThemeIconDark.style.display = 'block';   // Moon
         }
     });
 }
